@@ -109,6 +109,24 @@ function renderProducts(){
 function setMode(m,el){mode=m;document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderProducts()}
 function chooseCategory(c){document.getElementById('categoryFilter').value=c;document.querySelector('#discover').scrollIntoView({behavior:'smooth'});renderProducts()}
 function openModal(type){
+ if(type==='sell'){
+   if(currentUser){
+     openAddProduct();
+     return;
+   }
+   document.getElementById('modalContent').innerHTML=`
+     <h2>Welcome to LUXORA</h2>
+     <p>Login to your existing Seller account to list products.</p>
+     <button class="solid" style="width:100%;padding:13px"
+       onclick="showAuth('login')">LOGIN TO SELL</button>
+   `;
+   document.getElementById('modalBack').classList.add('show');
+   return;
+ }
+ showAuth('login');
+ document.getElementById('modalBack').classList.add('show');
+  }
+  
  const content=document.getElementById('modalContent');
  if(type==='sell'){
    content.innerHTML=`<h2>Start selling on LUXORA</h2><p>Create a Seller account to list products for sale or rent.</p><button class="solid" style="width:100%;padding:13px" onclick="showAuth('signup','Seller')">CREATE SELLER ACCOUNT</button><div class="notice">You can also create a Buyer or Driver account from the sign-up screen.</div>`;
