@@ -126,15 +126,6 @@ function openModal(type){
  showAuth('login');
  document.getElementById('modalBack').classList.add('show');
   }
-  
- const content=document.getElementById('modalContent');
- if(type==='sell'){
-   content.innerHTML=`<h2>Start selling on LUXORA</h2><p>Create a Seller account to list products for sale or rent.</p><button class="solid" style="width:100%;padding:13px" onclick="showAuth('signup','Seller')">CREATE SELLER ACCOUNT</button><div class="notice">You can also create a Buyer or Driver account from the sign-up screen.</div>`;
- } else {
-   showAuth('login');
- }
- document.getElementById('modalBack').classList.add('show');
-}
 function openAddProduct(){
  if(!currentUser){openModal('login');return;}
  if(currentProfile?.role!=='Seller'){alert('Product list karne ke liye Seller account zaroori hai.');return;}
