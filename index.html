@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="LUXORA — Buy, rent and sell quality products in one marketplace.">
+<title>LUXORA — Buy. Rent. Sell.</title>
+<style>
+:root{--ink:#171717;--muted:#77736d;--paper:#f7f5f0;--white:#fff;--gold:#b89555;--line:#e8e3d9;--dark:#191a18}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,Arial,sans-serif}
+button,input,select{font:inherit}button{cursor:pointer}.topbar{background:#171815;color:#e9e2d5;text-align:center;padding:9px 14px;font-size:11px;letter-spacing:1.8px}
+header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+.nav{max-width:1180px;margin:auto;padding:17px 22px;display:flex;align-items:center;gap:26px}
+.logo{font-family:Georgia,serif;font-size:27px;letter-spacing:4px;font-weight:bold;color:#171815;text-decoration:none}
+.logo span{color:var(--gold)}.navlinks{display:flex;gap:23px;margin-left:auto}.navlinks a{font-size:13px;text-decoration:none;color:#3c3b37}
+.nav-actions{display:flex;gap:10px}.outline,.solid{border:1px solid #252621;background:transparent;padding:10px 16px;font-size:12px;letter-spacing:.5px}.solid{background:#1b1c19;color:white}.outline:hover,.solid:hover{opacity:.8}
+.hero{max-width:1180px;margin:28px auto 0;padding:0 22px}.hero-inner{background:#20211d;color:white;min-height:360px;display:grid;grid-template-columns:1.1fr .9fr;overflow:hidden}
+.hero-copy{padding:58px 55px;align-self:center}.eyebrow{color:#d2b47d;font-size:10px;letter-spacing:3px;text-transform:uppercase}
+h1{font:normal clamp(38px,5vw,63px)/1.05 Georgia,serif;margin:17px 0}.hero p{color:#c9c7c0;line-height:1.7;font-size:14px;max-width:440px}
+.hero-buttons{display:flex;gap:12px;margin-top:26px}.gold-btn{background:#c3a16a;color:#171815;border:0;padding:14px 21px;font-size:12px;letter-spacing:1px}.light-btn{border:1px solid #77766f;color:#fff;background:transparent;padding:14px 21px;font-size:12px}
+.hero-art{position:relative;min-height:300px;background:radial-gradient(circle at 50% 45%,#65604e,#30312b 55%,#20211d 75%);display:flex;align-items:center;justify-content:center}
+.orb{width:230px;height:230px;border:1px solid #bca06c;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 65px #b8955522}
+.orb-inner{width:175px;height:175px;border-radius:50%;background:linear-gradient(145deg,#e5d7b8,#947b51);display:flex;align-items:center;justify-content:center;color:#27251f;font:italic 70px Georgia;box-shadow:inset -15px -18px 35px #493d2d55}
+.art-label{position:absolute;bottom:25px;right:28px;color:#e4d7bd;font:italic 15px Georgia;letter-spacing:1px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px}.trust{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:23px 0 34px;border-bottom:1px solid var(--line)}
+.trust div{text-align:center;font-size:11px;letter-spacing:1px;color:#69665f}.trust b{color:#25251f;font-weight:600}
+.section-head{display:flex;align-items:end;justify-content:space-between;margin:37px 0 19px}.section-head h2{font:normal 31px Georgia;margin:0}.section-head p{margin:7px 0 0;color:var(--muted);font-size:12px}
+.categories{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.cat{background:white;border:1px solid var(--line);padding:18px 8px;text-align:center;transition:.2s}.cat:hover{border-color:var(--gold);transform:translateY(-2px)}.cat .emoji{font-size:27px;display:block;margin-bottom:10px}.cat span:last-child{font-size:11px;letter-spacing:.4px}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:21px 0}.search{flex:1;min-width:190px;padding:13px 15px;border:1px solid var(--line);background:white;outline:none}.filter{padding:13px;border:1px solid var(--line);background:white;color:#393832}
+.tabs{display:flex;gap:7px}.tab{border:1px solid var(--line);background:white;padding:11px 17px;font-size:11px}.tab.active{background:#20211d;color:white;border-color:#20211d}
+.products{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.product{background:white;border:1px solid var(--line);min-width:0}.product-image{height:180px;background:#eeece6;display:flex;align-items:center;justify-content:center;font-size:66px;position:relative}.tag{position:absolute;top:12px;left:12px;background:#fff;padding:6px 9px;font-size:9px;letter-spacing:1px}.product-info{padding:15px}.product-type{font-size:9px;color:#9b8050;letter-spacing:1.5px;text-transform:uppercase}.product h3{font:normal 18px Georgia;margin:8px 0}.sub{font-size:11px;color:var(--muted)}.prices{display:flex;justify-content:space-between;align-items:end;margin-top:15px}.price{font-size:16px;font-weight:600}.rent{font-size:11px;color:#7b6846}.product-actions{display:flex;gap:7px;margin-top:13px}.product-actions button{flex:1;padding:10px 5px;font-size:10px;letter-spacing:.5px;border:1px solid #252621}.buy{background:#20211d;color:white}.rentbtn{background:white;color:#20211d}
+.empty{grid-column:1/-1;text-align:center;padding:35px;color:var(--muted);background:white}
+.seller{margin:54px 0;background:#e9e3d7;padding:35px 40px;display:flex;align-items:center;justify-content:space-between;gap:20px}.seller h2{font:normal 29px Georgia;margin:0 0 8px}.seller p{font-size:12px;color:#625f57;margin:0;line-height:1.6}
+footer{background:#191a18;color:#ddd6c9;padding:35px 22px}.foot{max-width:1180px;margin:auto;display:flex;justify-content:space-between;gap:20px;align-items:center}.foot small{color:#a9a398;line-height:1.7}.foot .logo{color:#fff}
+.modal-back{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;padding:18px;z-index:30}.modal-back.show{display:flex}.modal{background:white;width:min(440px,100%);padding:25px;position:relative}.modal h2{font:normal 26px Georgia;margin:0 0 8px}.modal p{font-size:12px;color:var(--muted);line-height:1.6}.close{position:absolute;right:15px;top:12px;border:0;background:none;font-size:23px}.form-row{display:grid;gap:6px;margin:13px 0}.form-row label{font-size:11px;color:#555}.form-row input,.form-row select{padding:12px;border:1px solid var(--line);width:100%}.notice{font-size:11px;color:#766746;background:#f5f0e6;padding:10px;margin-top:12px;line-height:1.5}
+@media(max-width:800px){.nav{gap:12px;padding:14px}.navlinks{display:none}.nav-actions{margin-left:auto}.hero-inner{grid-template-columns:1fr}.hero-copy{padding:40px 28px 25px}.hero-art{min-height:220px}.orb{width:165px;height:165px}.orb-inner{width:125px;height:125px;font-size:52px}.categories{grid-template-columns:repeat(3,1fr)}.products{grid-template-columns:repeat(2,1fr)}.product-image{height:145px}.seller{padding:27px;align-items:flex-start;flex-direction:column}.foot{align-items:flex-start;flex-direction:column}}
+@media(max-width:420px){.logo{font-size:22px}.nav-actions .outline{display:none}.hero-buttons{flex-wrap:wrap}.products{gap:9px}.product-info{padding:11px}.product h3{font-size:16px}.product-image{height:125px}.section-head h2{font-size:26px}}
+</style>
+</head>
+<body>
+<div class="topbar">A NEW WAY TO OWN MORE — BUY • RENT • SELL</div>
+<header><nav class="nav">
+<a class="logo" href="#">LUX<span>O</span>RA</a>
+<div class="navlinks"><a href="#categories">Categories</a><a href="#discover">Explore</a><a href="#sell">Become a Seller</a></div>
+<div class="nav-actions"><button class="outline" onclick="openModal('login')">LOG IN</button><button class="solid" onclick="openModal('sell')">START SELLING</button></div>
+</nav></header>
+<main>
+<section class="hero"><div class="hero-inner">
+<div class="hero-copy"><div class="eyebrow">THE LUXORA MARKETPLACE</div><h1>More ways to<br><em>make it yours.</em></h1>
+<p>Discover what you need. Buy what you love, rent what you need, or turn your unused items into extra income.</p>
+<div class="hero-buttons"><button class="gold-btn" onclick="document.querySelector('#discover').scrollIntoView({behavior:'smooth'})">EXPLORE PRODUCTS ↗</button><button class="light-btn" onclick="openModal('sell')">SELL OR RENT WITH US</button></div></div>
+<div class="hero-art"><div class="orb"><div class="orb-inner">L</div></div><div class="art-label">A marketplace without limits</div></div>
+</div></section>
+<div class="wrap"><div class="trust"><div><b>BUY WITH CONFIDENCE</b><br><small>Find your next favourite</small></div><div><b>RENT WITH FLEXIBILITY</b><br><small>Use it for as long as you need</small></div><div><b>SELL WITH EASE</b><br><small>Give your items a new life</small></div></div>
+<section id="categories"><div class="section-head"><div><h2>Explore categories</h2><p>Find something for every part of life.</p></div></div>
+<div class="categories">
+<button class="cat" onclick="chooseCategory('Electronics')"><span class="emoji">📺</span><span>Electronics</span></button>
+<button class="cat" onclick="chooseCategory('Appliances')"><span class="emoji">🧊</span><span>Appliances</span></button>
+<button class="cat" onclick="chooseCategory('Vehicles')"><span class="emoji">🛵</span><span>Vehicles</span></button>
+<button class="cat" onclick="chooseCategory('Furniture')"><span class="emoji">🛋️</span><span>Furniture</span></button>
+<button class="cat" onclick="chooseCategory('Fashion')"><span class="emoji">👜</span><span>Fashion</span></button>
+<button class="cat" onclick="chooseCategory('Tools')"><span class="emoji">🧰</span><span>Tools & More</span></button>
+</div></section>
+<section id="discover"><div class="section-head"><div><h2>Discover the collection</h2><p>Explore items available to buy or rent.</p></div></div>
+<div class="toolbar"><input id="search" class="search" placeholder="Search products..." oninput="renderProducts()">
+<select id="categoryFilter" class="filter" onchange="renderProducts()"><option value="All">All categories</option><option>Electronics</option><option>Appliances</option><option>Vehicles</option><option>Furniture</option><option>Fashion</option><option>Tools</option></select>
+<div class="tabs"><button class="tab active" data-mode="All" onclick="setMode('All',this)">All</button><button class="tab" data-mode="Buy" onclick="setMode('Buy',this)">Buy</button><button class="tab" data-mode="Rent" onclick="setMode('Rent',this)">Rent</button></div></div>
+<div class="products" id="products"></div></section>
+<section class="seller" id="sell"><div><h2>Have something to offer?</h2><p>List your product on LUXORA and reach people looking to buy or rent.<br>Start your seller journey with us.</p></div><button class="solid" onclick="openModal('sell')">LIST YOUR ITEM ↗</button></section>
+</div></main>
+<footer><div class="foot"><div><a class="logo" href="#">LUX<span>O</span>RA</a><br><small>Buy. Rent. Sell.<br>Everything you need, one marketplace.</small></div><small>© 2026 LUXORA. Demo marketplace concept.<br>Product listings shown are sample items.</small></div></footer>
+<div class="modal-back" id="modalBack" onclick="if(event.target===this)closeModal()"><div class="modal"><button class="close" onclick="closeModal()">×</button><div id="modalContent"></div></div></div>
+<script src="https://cdn.jsdelivr.net/npm/appwrite@29.0.0"></script>
+<script>
+// LUXORA Appwrite client configuration (public project identifiers only).
+const client = new Appwrite.Client()
+  .setEndpoint('https://sgp.cloud.appwrite.io/v1')
+  .setProject('6aede45a001ed997f965');
+const account = new Appwrite.Account(client);
+const tablesDB = new Appwrite.TablesDB(client);
+const APPWRITE_DATABASE_ID = '6aedf1e600285f518090';
+const PROFILES_TABLE_ID = '6aedf248000a3430bed5';
+let currentUser = null;
+let currentProfile = null;
+
+const items=[
+{name:'Smart LED Television',cat:'Electronics',emoji:'📺',buy:28999,rent:1200,unit:'month',desc:'55-inch 4K smart TV'},
+{name:'Double Door Refrigerator',cat:'Appliances',emoji:'🧊',buy:32999,rent:950,unit:'month',desc:'Energy-efficient refrigerator'},
+{name:'City Commuter Scooter',cat:'Vehicles',emoji:'🛵',buy:78500,rent:180,unit:'day',desc:'Comfortable daily commute'},
+{name:'Modern 3-Seater Sofa',cat:'Furniture',emoji:'🛋️',buy:24999,rent:850,unit:'month',desc:'Contemporary living room sofa'},
+{name:'Front Load Washing Machine',cat:'Appliances',emoji:'🧺',buy:21999,rent:700,unit:'month',desc:'Fully automatic washing machine'},
+{name:'Professional Laptop',cat:'Electronics',emoji:'💻',buy:64999,rent:2200,unit:'month',desc:'Work and entertainment laptop'},
+{name:'Premium Camera Kit',cat:'Electronics',emoji:'📷',buy:54999,rent:900,unit:'day',desc:'Camera kit for creators'},
+{name:'Power Tool Set',cat:'Tools',emoji:'🧰',buy:8999,rent:350,unit:'day',desc:'Multi-purpose DIY tool kit'}
+];
+let mode='All';
+function money(n){return '₹'+n.toLocaleString('en-IN')}
+function renderProducts(){
+ const q=document.getElementById('search').value.toLowerCase(),cat=document.getElementById('categoryFilter').value;
+ const found=items.filter(x=>(cat==='All'||x.cat===cat)&&(mode==='All'||(mode==='Buy'?x.buy:x.rent))&&(x.name+' '+x.cat+' '+x.desc).toLowerCase().includes(q));
+ document.getElementById('products').innerHTML=found.length?found.map((x)=>`<article class="product"><div class="product-image"><span class="tag">${x.cat}</span>${x.emoji}</div><div class="product-info"><div class="product-type">LUXORA SELECT</div><h3>${x.name}</h3><div class="sub">${x.desc}</div><div class="prices"><div><div class="price">${money(x.buy)}</div><div class="sub">Buy once</div></div><div style="text-align:right"><div class="rent">${money(x.rent)} / ${x.unit}</div><div class="sub">Rent</div></div></div><div class="product-actions"><button class="buy" onclick="productAction('${x.name}','buy',${x.buy})">BUY NOW</button><button class="rentbtn" onclick="productAction('${x.name}','rent',${x.rent})">RENT NOW</button></div></div></article>`).join(''):'<div class="empty">No products found. Try another search or category.</div>';
+}
+function setMode(m,el){mode=m;document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderProducts()}
+function chooseCategory(c){document.getElementById('categoryFilter').value=c;document.querySelector('#discover').scrollIntoView({behavior:'smooth'});renderProducts()}
+function openModal(type){
+ const content=document.getElementById('modalContent');
+ if(type==='sell'){
+   content.innerHTML=`<h2>Start selling on LUXORA</h2><p>Create a Seller account to list products for sale or rent.</p><button class="solid" style="width:100%;padding:13px" onclick="showAuth('signup','Seller')">CREATE SELLER ACCOUNT</button><div class="notice">You can also create a Buyer or Driver account from the sign-up screen.</div>`;
+ } else {
+   showAuth('login');
+ }
+ document.getElementById('modalBack').classList.add('show');
+}
+function showAuth(mode='login', selectedRole='Buyer'){
+ const isSignup = mode==='signup';
+ document.getElementById('modalContent').innerHTML = `
+  <h2>${isSignup?'Create your LUXORA account':'Welcome back'}</h2>
+  <p>${isSignup?'Sign up with your email and choose how you will use LUXORA.':'Log in with your registered email and password.'}</p>
+  <form id="authForm" onsubmit="handleAuth(event,'${mode}')">
+   ${isSignup?`<div class="form-row"><label>Full name</label><input id="authName" required maxlength="128" placeholder="Your name"></div>`:''}
+   <div class="form-row"><label>Email address</label><input id="authEmail" type="email" required autocomplete="email" placeholder="you@example.com"></div>
+   <div class="form-row"><label>Password</label><input id="authPassword" type="password" required minlength="8" autocomplete="${isSignup?'new-password':'current-password'}" placeholder="At least 8 characters"></div>
+   ${isSignup?`<div class="form-row"><label>Account type</label><select id="authRole" onchange="toggleVehicleField()"><option ${selectedRole==='Buyer'?'selected':''}>Buyer</option><option ${selectedRole==='Seller'?'selected':''}>Seller</option><option ${selectedRole==='Driver'?'selected':''}>Driver</option></select></div><div class="form-row" id="vehicleField" style="display:none"><label>Your vehicle</label><select id="authVehicle"><option value="">Choose vehicle</option><option>Bike</option><option>Auto</option><option>Car</option><option>Pickup</option><option>Mini Truck</option><option>Truck</option></select></div>`:''}
+   <button class="solid" id="authSubmit" style="width:100%;padding:13px">${isSignup?'CREATE ACCOUNT':'LOG IN'}</button>
+  </form>
+  <div class="notice" id="authMessage" aria-live="polite">${isSignup?'Your account and profile will be saved in Appwrite.':'Your account is securely authenticated by Appwrite.'}</div>
+  <p style="text-align:center;margin-top:14px">${isSignup?'Already have an account?':'New to LUXORA?'} <a href="#" onclick="event.preventDefault();showAuth('${isSignup?'login':'signup'}')">${isSignup?'Log in':'Create account'}</a></p>`;
+ toggleVehicleField();
+}
+function toggleVehicleField(){
+ const role=document.getElementById('authRole');
+ const field=document.getElementById('vehicleField');
+ if(role && field) field.style.display=role.value==='Driver'?'grid':'none';
+}
+async function handleAuth(event, mode){
+ event.preventDefault();
+ const button=document.getElementById('authSubmit');
+ const message=document.getElementById('authMessage');
+ const email=document.getElementById('authEmail').value.trim().toLowerCase();
+ const password=document.getElementById('authPassword').value;
+ button.disabled=true; button.textContent='PLEASE WAIT…';
+ message.textContent='Connecting securely to LUXORA…';
+ try{
+  if(mode==='signup'){
+   const name=document.getElementById('authName').value.trim();
+   const role=document.getElementById('authRole').value;
+   const vehicleType=role==='Driver'?document.getElementById('authVehicle').value:'';
+   if(role==='Driver' && !vehicleType) throw new Error('Driver account ke liye apna vehicle select karein.');
+   const user=await account.create({userId:Appwrite.ID.unique(),email,password,name});
+   await account.createEmailPasswordSession({email,password});
+   currentUser=await account.get();
+   const permissions=[
+    Appwrite.Permission.read(Appwrite.Role.user(user.$id)),
+    Appwrite.Permission.update(Appwrite.Role.user(user.$id))
+   ];
+   try{
+    currentProfile=await tablesDB.createRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:user.$id,data:{userId:user.$id,name,email,role,vehicleType},permissions});
+   }catch(profileError){
+    message.textContent='Account ban gaya aur login ho gaya, lekin profile save nahi hui. Appwrite Profiles table ke columns/permissions check karne honge. Details: '+(profileError.message||'Unknown error');
+    button.disabled=false; button.textContent='CREATE ACCOUNT'; return;
+   }
+   message.textContent=`Account ready! You are signed in as ${role}.`;
+  }else{
+   await account.createEmailPasswordSession({email,password});
+   currentUser=await account.get();
+   try{currentProfile=await tablesDB.getRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:currentUser.$id});}
+   catch(_){currentProfile=null;}
+   message.textContent=`Login successful${currentProfile?.role?' — '+currentProfile.role:''}!`;
+  }
+  button.textContent='SUCCESS';
+  setTimeout(()=>{closeModal();refreshAuthButtons();},900);
+ }catch(error){
+  message.textContent=error.message||'Something went wrong. Please try again.';
+  button.disabled=false; button.textContent=mode==='signup'?'CREATE ACCOUNT':'LOG IN';
+ }
+}
+async function refreshAuthButtons(){
+ const actions=document.querySelector('.nav-actions');
+ if(!actions)return;
+ if(currentUser){
+  actions.innerHTML=`<span style="font-size:11px;align-self:center">${(currentUser.name||currentUser.email).replace(/[<>]/g,'')}</span><button class="outline" onclick="logoutUser()">LOG OUT</button>`;
+ }else{
+  actions.innerHTML=`<button class="outline" onclick="openModal('login')">LOG IN</button><button class="solid" onclick="openModal('sell')">START SELLING</button>`;
+ }
+}
+async function logoutUser(){
+ try{await account.deleteSession({sessionId:'current'});currentUser=null;currentProfile=null;refreshAuthButtons();}
+ catch(error){alert(error.message||'Could not log out.');}
+}
+async function restoreSession(){
+ try{currentUser=await account.get();try{currentProfile=await tablesDB.getRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:currentUser.$id});}catch(_){currentProfile=null;}refreshAuthButtons();}
+ catch(_){currentUser=null;}
+}
+function closeModal(){document.getElementById('modalBack').classList.remove('show')}
+function submitDemo(e,type){e.preventDefault();document.getElementById('modalContent').innerHTML=`<h2>Thank you!</h2><p>Your ${type==='listing'?'seller interest':'demo login'} form was completed in this preview. No data has been sent or stored.</p><button class="solid" onclick="closeModal()">CLOSE</button>`}
+function productAction(name,kind,price){document.getElementById('modalContent').innerHTML=`<h2>${kind==='buy'?'Buy':'Rent'} ${name}</h2><p>Displayed ${kind==='buy'?'purchase price':'rental price'}: <strong>${money(price)}${kind==='rent'?' (rental period shown on listing)':''}</strong></p><p>This is a front-end preview. Checkout, delivery address, seller contact and secure payment will be enabled after the backend is connected.</p><button class="solid" style="width:100%;padding:13px" onclick="closeModal()">GOT IT</button>`;document.getElementById('modalBack').classList.add('show')}
+renderProducts();
+restoreSession();
+</script>
+</body></html>
