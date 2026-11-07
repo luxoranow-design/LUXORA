@@ -78,8 +78,11 @@ const client = new Appwrite.Client()
   .setProject('6aede45a001ed997f965');
 const account = new Appwrite.Account(client);
 const tablesDB = new Appwrite.TablesDB(client);
+const storage = new Appwrite.Storage(client);
 const APPWRITE_DATABASE_ID = '6aedf1e600285f518090';
 const PROFILES_TABLE_ID = '6aedf248000a3430bed5';
+const PRODUCTS_TABLE_ID = '6aee01e8000b17cee5a3';
+const PRODUCTS_BUCKET_ID = '6aeeaa70002563e59eab';
 let currentUser = null;
 let currentProfile = null;
 
@@ -94,11 +97,14 @@ const items=[
 {name:'Power Tool Set',cat:'Tools',emoji:'🧰',buy:8999,rent:350,unit:'day',desc:'Multi-purpose DIY tool kit'}
 ];
 let mode='All';
+let liveProducts=[];
 function money(n){return '₹'+n.toLocaleString('en-IN')}
+function escapeHTML(value){return String(value??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch]));}
 function renderProducts(){
+ const allItems=[...items,...liveProducts];
  const q=document.getElementById('search').value.toLowerCase(),cat=document.getElementById('categoryFilter').value;
- const found=items.filter(x=>(cat==='All'||x.cat===cat)&&(mode==='All'||(mode==='Buy'?x.buy:x.rent))&&(x.name+' '+x.cat+' '+x.desc).toLowerCase().includes(q));
- document.getElementById('products').innerHTML=found.length?found.map((x)=>`<article class="product"><div class="product-image"><span class="tag">${x.cat}</span>${x.emoji}</div><div class="product-info"><div class="product-type">LUXORA SELECT</div><h3>${x.name}</h3><div class="sub">${x.desc}</div><div class="prices"><div><div class="price">${money(x.buy)}</div><div class="sub">Buy once</div></div><div style="text-align:right"><div class="rent">${money(x.rent)} / ${x.unit}</div><div class="sub">Rent</div></div></div><div class="product-actions"><button class="buy" onclick="productAction('${x.name}','buy',${x.buy})">BUY NOW</button><button class="rentbtn" onclick="productAction('${x.name}','rent',${x.rent})">RENT NOW</button></div></div></article>`).join(''):'<div class="empty">No products found. Try another search or category.</div>';
+ const found=allItems.filter(x=>(cat==='All'||x.cat===cat)&&(mode==='All'||(mode==='Buy'?x.buy:x.rent))&&(x.name+' '+x.cat+' '+x.desc).toLowerCase().includes(q));
+ document.getElementById('products').innerHTML=found.length?found.map((x)=>{const image=x.imageUrl?`<img src="${escapeHTML(x.imageUrl)}" alt="${escapeHTML(x.name)}" style="width:100%;height:100%;object-fit:cover">`:x.emoji;const buy=x.buy?`<div><div class="price">${money(x.buy)}</div><div class="sub">Buy once</div></div>`:'';const rent=x.rent?`<div style="text-align:right"><div class="rent">${money(x.rent)} / ${x.unit||'day'}</div><div class="sub">Rent</div></div>`:'';return `<article class="product"><div class="product-image"><span class="tag">${escapeHTML(x.cat)}</span>${image}</div><div class="product-info"><div class="product-type">LUXORA SELECT</div><h3>${escapeHTML(x.name)}</h3><div class="sub">${escapeHTML(x.desc)}</div><div class="prices">${buy}${rent}</div><div class="product-actions">${x.buy?`<button class="buy" onclick="productAction('${escapeHTML(x.name)}','buy',${x.buy})">BUY NOW</button>`:''}${x.rent?`<button class="rentbtn" onclick="productAction('${escapeHTML(x.name)}','rent',${x.rent})">RENT NOW</button>`:''}</div></div></article>`}).join(''):'<div class="empty">No products found. Try another search or category.</div>';
 }
 function setMode(m,el){mode=m;document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderProducts()}
 function chooseCategory(c){document.getElementById('categoryFilter').value=c;document.querySelector('#discover').scrollIntoView({behavior:'smooth'});renderProducts()}
@@ -110,6 +116,69 @@ function openModal(type){
    showAuth('login');
  }
  document.getElementById('modalBack').classList.add('show');
+}
+function openAddProduct(){
+ if(!currentUser){openModal('login');return;}
+ if(currentProfile?.role!=='Seller'){alert('Product list karne ke liye Seller account zaroori hai.');return;}
+ document.getElementById('modalContent').innerHTML=`
+  <h2>Add a product</h2><p>Apne product ki details aur photo upload karein.</p>
+  <form id="productForm" onsubmit="handleAddProduct(event)">
+   <div class="form-row"><label>Product name</label><input id="pTitle" required maxlength="255" placeholder="e.g. Office chair"></div>
+   <div class="form-row"><label>Description</label><input id="pDescription" required maxlength="2000" placeholder="Product ki details"></div>
+   <div class="form-row"><label>Category</label><select id="pCategory" required><option value="">Choose category</option><option>Electronics</option><option>Appliances</option><option>Vehicles</option><option>Furniture</option><option>Fashion</option><option>Tools</option><option>Other</option></select></div>
+   <div class="form-row"><label>Listing type</label><select id="pListingType" required><option value="Buy">For Sale</option><option value="Rent">For Rent</option></select></div>
+   <div class="form-row"><label>Price (₹)</label><input id="pPrice" type="number" min="1" step="0.01" required placeholder="Price"></div>
+   <div class="form-row"><label>Condition</label><select id="pCondition" required><option>New</option><option>Like New</option><option>Good</option><option>Used</option></select></div>
+   <div class="form-row"><label>Stock / quantity</label><input id="pStock" type="number" min="1" step="1" value="1" required></div>
+   <div class="form-row"><label>Weight (kg, if known)</label><input id="pWeight" type="number" min="0" step="0.01" value="0"></div>
+   <div class="form-row"><label>Vehicle needed for delivery</label><select id="pVehicle"><option value="">Not specified</option><option>Bike</option><option>Auto</option><option>Car</option><option>Pickup</option><option>Mini Truck</option><option>Truck</option></select></div>
+   <div class="form-row"><label>Product photo</label><input id="pImage" type="file" accept="image/*" required></div>
+   <button class="solid" id="productSubmit" style="width:100%;padding:13px">UPLOAD PRODUCT</button>
+  </form><div class="notice" id="productMessage" aria-live="polite">Photo and product details will be saved to Appwrite.</div>`;
+ document.getElementById('modalBack').classList.add('show');
+}
+async function handleAddProduct(event){
+ event.preventDefault();
+ const btn=document.getElementById('productSubmit'),msg=document.getElementById('productMessage');
+ const file=document.getElementById('pImage').files[0];
+ if(!currentUser){msg.textContent='Please log in first.';return;}
+ if(!file){msg.textContent='Please select a product photo.';return;}
+ if(!file.type.startsWith('image/')){msg.textContent='Sirf image file upload karein.';return;}
+ if(file.size>5*1024*1024){msg.textContent='Photo 5 MB se chhoti honi chahiye.';return;}
+ btn.disabled=true;btn.textContent='UPLOADING…';msg.textContent='Photo upload ho rahi hai…';
+ let uploadedFileId=null;
+ try{
+  const title=document.getElementById('pTitle').value.trim();
+  const description=document.getElementById('pDescription').value.trim();
+  const category=document.getElementById('pCategory').value;
+  const listingType=document.getElementById('pListingType').value;
+  const price=Number(document.getElementById('pPrice').value);
+  const condition=document.getElementById('pCondition').value;
+  const stock=Number(document.getElementById('pStock').value);
+  const weight=Number(document.getElementById('pWeight').value||0);
+  const vehicleType=document.getElementById('pVehicle').value;
+  if(!(price>0) || !(stock>=1) || !(weight>=0)) throw new Error('Price, stock aur weight sahi bharein.');
+  const filePermissions=[Appwrite.Permission.read(Appwrite.Role.any()),Appwrite.Permission.update(Appwrite.Role.user(currentUser.$id)),Appwrite.Permission.delete(Appwrite.Role.user(currentUser.$id))];
+  const uploaded=await storage.createFile({bucketId:PRODUCTS_BUCKET_ID,fileId:Appwrite.ID.unique(),file,permissions:filePermissions});
+  uploadedFileId=uploaded.$id;
+  msg.textContent='Photo upload ho gayi. Product save ho raha hai…';
+  const rowPermissions=[Appwrite.Permission.read(Appwrite.Role.any()),Appwrite.Permission.update(Appwrite.Role.user(currentUser.$id)),Appwrite.Permission.delete(Appwrite.Role.user(currentUser.$id))];
+  await tablesDB.createRow({databaseId:APPWRITE_DATABASE_ID,tableId:PRODUCTS_TABLE_ID,rowId:Appwrite.ID.unique(),data:{sellerId:currentUser.$id,title,description,category,price,listingType,condition,imageId:uploadedFileId,stock,weight,vehicleType,status:'Available',createdAt:new Date().toISOString()},permissions:rowPermissions});
+  msg.textContent='Product successfully Appwrite mein save ho gaya!';
+  btn.textContent='SAVED';
+  await loadLiveProducts();
+  setTimeout(()=>closeModal(),1100);
+ }catch(error){
+  msg.textContent='Product save nahi hua: '+(error.message||'Unknown error')+(uploadedFileId?' (Photo upload ho gayi hai; product row save nahi hui.)':'');
+  btn.disabled=false;btn.textContent='TRY AGAIN';
+ }
+}
+async function loadLiveProducts(){
+ try{
+  const result=await tablesDB.listRows({databaseId:APPWRITE_DATABASE_ID,tableId:PRODUCTS_TABLE_ID});
+  liveProducts=result.rows.map(row=>({name:row.title,cat:row.category,desc:row.description,buy:row.listingType==='Buy'?Number(row.price):null,rent:row.listingType==='Rent'?Number(row.price):null,unit:'day',emoji:'📦',imageUrl:row.imageId?String(storage.getFileView({bucketId:PRODUCTS_BUCKET_ID,fileId:row.imageId})):''}));
+  renderProducts();
+ }catch(error){console.warn('Could not load Appwrite products:',error.message||error);}
 }
 function showAuth(mode='login', selectedRole='Buyer'){
  const isSignup = mode==='signup';
@@ -178,7 +247,7 @@ async function refreshAuthButtons(){
  const actions=document.querySelector('.nav-actions');
  if(!actions)return;
  if(currentUser){
-  actions.innerHTML=`<span style="font-size:11px;align-self:center">${(currentUser.name||currentUser.email).replace(/[<>]/g,'')}</span><button class="outline" onclick="logoutUser()">LOG OUT</button>`;
+  actions.innerHTML=`${currentProfile?.role==='Seller'?'<button class="solid" onclick="openAddProduct()">ADD PRODUCT</button>':''}<span style="font-size:11px;align-self:center">${(currentUser.name||currentUser.email).replace(/[<>]/g,'')}</span><button class="outline" onclick="logoutUser()">LOG OUT</button>`;
  }else{
   actions.innerHTML=`<button class="outline" onclick="openModal('login')">LOG IN</button><button class="solid" onclick="openModal('sell')">START SELLING</button>`;
  }
@@ -195,6 +264,7 @@ function closeModal(){document.getElementById('modalBack').classList.remove('sho
 function submitDemo(e,type){e.preventDefault();document.getElementById('modalContent').innerHTML=`<h2>Thank you!</h2><p>Your ${type==='listing'?'seller interest':'demo login'} form was completed in this preview. No data has been sent or stored.</p><button class="solid" onclick="closeModal()">CLOSE</button>`}
 function productAction(name,kind,price){document.getElementById('modalContent').innerHTML=`<h2>${kind==='buy'?'Buy':'Rent'} ${name}</h2><p>Displayed ${kind==='buy'?'purchase price':'rental price'}: <strong>${money(price)}${kind==='rent'?' (rental period shown on listing)':''}</strong></p><p>This is a front-end preview. Checkout, delivery address, seller contact and secure payment will be enabled after the backend is connected.</p><button class="solid" style="width:100%;padding:13px" onclick="closeModal()">GOT IT</button>`;document.getElementById('modalBack').classList.add('show')}
 renderProducts();
+loadLiveProducts();
 restoreSession();
 </script>
 </body></html>
