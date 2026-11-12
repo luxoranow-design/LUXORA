@@ -107,7 +107,7 @@ function renderProducts(){
  const allItems=[...items,...liveProducts];
  const q=document.getElementById('search').value.toLowerCase(),cat=document.getElementById('categoryFilter').value;
  const found=allItems.filter(x=>(cat==='All'||x.cat===cat)&&(mode==='All'||(mode==='Buy'?x.buy:x.rent))&&(x.name+' '+x.cat+' '+x.desc).toLowerCase().includes(q));
- document.getElementById('products').innerHTML=found.length?found.map((x)=>{const image=x.imageUrl?`<img src="${escapeHTML(x.imageUrl)}" alt="${escapeHTML(x.name)}" style="width:100%;height:100%;object-fit:cover">`:x.emoji;const buy=x.buy?`<div><div class="price">${money(x.buy)}</div><div class="sub">Buy once</div></div>`:'';const rent=x.rent?`<div style="text-align:right"><div class="rent">${money(x.rent)} / ${x.unit||'day'}</div><div class="sub">Rent</div></div>`:'';return `<article class="product"><div class="product-image"><span class="tag">${escapeHTML(x.cat)}</span>${image}</div><div class="product-info"><div class="product-type">LUXORA SELECT</div><h3>${escapeHTML(x.name)}</h3><div class="sub">${escapeHTML(x.desc)}</div><div class="prices">${buy}${rent}</div><div class="product-actions">${x.buy?`<button class="buy" onclick="productAction('${escapeHTML(x.name)}','buy',${x.buy})">BUY NOW</button>`:''}${x.rent?`<button class="rentbtn" onclick="productAction('${escapeHTML(x.name)}','rent',${x.rent})">RENT NOW</button>`:''}</div></div></article>`}).join(''):'<div class="empty">No products found. Try another search or category.</div>';
+ document.getElementById('products').innerHTML=found.length?found.map((x)=>{const image=x.imageUrl?`<img src="${escapeHTML(x.imageUrl)}" alt="${escapeHTML(x.name)}" style="width:100%;height:100%;object-fit:cover">`:x.emoji;const buy=x.buy?`<div><div class="price">${money(x.buy)}</div><div class="sub">Buy once</div></div>`:'';const rent=x.rent?`<div style="text-align:right"><div class="rent">${money(x.rent)} / ${x.unit||'day'}</div><div class="sub">Rent</div></div>`:'';return `<article class="product"><div class="product-image"><span class="tag">${escapeHTML(x.cat)}</span>${image}</div><div class="product-info"><div class="product-type">LUXORA SELECT</div><h3>${escapeHTML(x.name)}</h3><div class="sub">${escapeHTML(x.desc)}</div><div class="prices">${buy}${rent}</div><div class="product-actions">${x.buy?`<button class="buy" onclick="productAction('${escapeHTML(x.id||'')}','${escapeHTML(x.name)}','buy',${x.buy})">BUY NOW</button>`:''}${x.rent?`<button class="rentbtn" onclick="productAction('${escapeHTML(x.id||'')}','${escapeHTML(x.name)}','rent',${x.rent})">RENT NOW</button>`:''}</div></div></article>`}).join(''):'<div class="empty">No products found. Try another search or category.</div>';
 }
 function setMode(m,el){mode=m;document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderProducts()}
 function chooseCategory(c){document.getElementById('categoryFilter').value=c;document.querySelector('#discover').scrollIntoView({behavior:'smooth'});renderProducts()}
@@ -280,7 +280,7 @@ async function handleAddProduct(event){
 async function loadLiveProducts(){
  try{
   const result=await tablesDB.listRows({databaseId:APPWRITE_DATABASE_ID,tableId:PRODUCTS_TABLE_ID});
-  liveProducts=result.rows.map(row=>({name:row.title,cat:row.category,desc:row.description,buy:row.listingType==='Buy'?Number(row.price):null,rent:row.listingType==='Rent'?Number(row.price):null,unit:'day',emoji:'📦',imageUrl:row.imageId?String(storage.getFileView({bucketId:PRODUCTS_BUCKET_ID,fileId:row.imageId})):''}));
+  liveProducts=result.rows.map(row=>({id:row.$id,sellerId:row.sellerId,title:row.title,name:row.title,cat:row.category,desc:row.description,buy:row.listingType==='Buy'?Number(row.price):null,rent:row.listingType==='Rent'?Number(row.price):null,unit:'day',stock:Number(row.stock||1),vehicleType:row.vehicleType||'',pickupAddress:row.pickupAddress||'',pickupLatitude:row.pickupLatitude,pickupLongitude:row.pickupLongitude,emoji:'📦',imageUrl:row.imageId?String(storage.getFileView({bucketId:PRODUCTS_BUCKET_ID,fileId:row.imageId})):''}));
   renderProducts();
  }catch(error){console.warn('Could not load Appwrite products:',error.message||error);}
 }
@@ -462,7 +462,64 @@ function openDriverDashboard(){
 function toggleDriverPreview(){driverOnlinePreview=!driverOnlinePreview;openDriverDashboard();}
 function closeModal(){document.getElementById('modalBack').classList.remove('show')}
 function submitDemo(e,type){e.preventDefault();document.getElementById('modalContent').innerHTML=`<h2>Thank you!</h2><p>Your ${type==='listing'?'seller interest':'demo login'} form was completed in this preview. No data has been sent or stored.</p><button class="solid" onclick="closeModal()">CLOSE</button>`}
-function productAction(name,kind,price){document.getElementById('modalContent').innerHTML=`<h2>${kind==='buy'?'Buy':'Rent'} ${name}</h2><p>Displayed ${kind==='buy'?'purchase price':'rental price'}: <strong>${money(price)}${kind==='rent'?' (rental period shown on listing)':''}</strong></p><p>This is a front-end preview. Checkout, delivery address, seller contact and secure payment will be enabled after the backend is connected.</p><button class="solid" style="width:100%;padding:13px" onclick="closeModal()">GOT IT</button>`;document.getElementById('modalBack').classList.add('show')}
+function productAction(productId,name,kind,price){
+ if(!productId){document.getElementById('modalContent').innerHTML='<h2>'+escapeHTML(name)+'</h2><p>Yeh sample display item hai. Order karne ke liye Seller ka live uploaded product select karein.</p><button class="outline" onclick="closeModal()">CLOSE</button>';document.getElementById('modalBack').classList.add('show');return;}
+ if(!currentUser){document.getElementById('modalContent').innerHTML='<h2>Login required</h2><p>Order karne ke liye Buyer account se login karein.</p><button class="solid" onclick="showAuth(\'login\',\'Buyer\')">LOGIN</button>';document.getElementById('modalBack').classList.add('show');return;}
+ if(currentProfile?.role!=='Buyer'){document.getElementById('modalContent').innerHTML='<h2>Buyer account required</h2><p>Buy/Rent karne ke liye Buyer account se login karein.</p><button class="outline" onclick="closeModal()">CLOSE</button>';document.getElementById('modalBack').classList.add('show');return;}
+ const product=liveProducts.find(p=>p.id===productId);
+ if(!product){alert('Product refresh nahi hua. Page refresh karke try karein.');return;}
+ if(product.sellerId===currentUser.$id){alert('Aap apna khud ka product order nahi kar sakte.');return;}
+ openCheckout(productId,kind);
+}
+async function openCheckout(productId,kind){
+ const p=liveProducts.find(x=>x.id===productId);if(!p)return;
+ const price=kind==='buy'?p.buy:p.rent;
+ if(!(price>0)){alert('Is product ke liye yeh option available nahi hai.');return;}
+ document.getElementById('modalContent').innerHTML='<h2>Checkout</h2><p>Order form load ho raha hai…</p>';
+ document.getElementById('modalBack').classList.add('show');
+ const vehicleOptions=['Bike','Auto','Car','Pickup','Mini Truck','Truck'];
+ document.getElementById('modalContent').innerHTML=`
+ <h2>${kind==='buy'?'Buy':'Rent'} ${escapeHTML(p.name)}</h2>
+ <p>Product price: <strong>${money(price)} ${kind==='rent'?'/ day':''}</strong></p>
+ <form id="checkoutForm" onsubmit="submitCheckout(event,'${escapeHTML(productId)}','${kind}')">
+  <div class="form-row"><label>Quantity</label><input id="checkoutQty" type="number" min="1" max="${Math.max(1,p.stock)}" value="1" required></div>
+  ${kind==='rent'?'<div class="form-row"><label>Rental days</label><input id="checkoutDays" type="number" min="1" max="365" value="1" required></div>':''}
+  <h3>Delivery address</h3><div id="buyerDeliveryFields"></div>
+  <div class="form-row"><label>Delivery vehicle</label><select id="checkoutVehicle">${vehicleOptions.map(v=>'<option '+(p.vehicleType===v?'selected':'')+'>'+v+'</option>').join('')}</select></div>
+  <div class="notice">Delivery charge road distance ke hisaab se calculate hoga. Payment abhi collect nahi hoga; order payment pending rahega.</div>
+  <button class="solid" id="checkoutSubmit" style="width:100%;padding:13px">CALCULATE & PLACE ORDER REQUEST</button>
+ </form><div class="notice" id="checkoutMessage" aria-live="polite"></div>`;
+ document.getElementById('buyerDeliveryFields').innerHTML=addressFields('buyerDelivery');
+}
+async function submitCheckout(event,productId,kind){
+ event.preventDefault();
+ const p=liveProducts.find(x=>x.id===productId),btn=document.getElementById('checkoutSubmit'),msg=document.getElementById('checkoutMessage');
+ if(!p||!currentUser||currentProfile?.role!=='Buyer'){msg.textContent='Buyer login ya product details nahi milin.';return;}
+ const qty=Number(document.getElementById('checkoutQty').value),days=kind==='rent'?Number(document.getElementById('checkoutDays').value):1;
+ if(!Number.isInteger(qty)||qty<1||qty>p.stock){msg.textContent='Quantity available stock ke hisaab se bharein.';return;}
+ if(!Number.isInteger(days)||days<1||days>365){msg.textContent='Rental days 1 se 365 ke beech honi chahiye.';return;}
+ if(!p.pickupAddress||p.pickupLatitude==null||p.pickupLongitude==null){msg.textContent='Seller ke pickup address/map location available nahi hai. Seller ko address update karna hoga.';return;}
+ btn.disabled=true;btn.textContent='CALCULATING…';msg.textContent='Delivery address aur road distance check ho raha hai…';
+ try{
+  const deliveryAddress=collectAddress('buyerDelivery');
+  const destination=await geocodePickupAddress(deliveryAddress,'buyerDelivery');
+  const vehicle=document.getElementById('checkoutVehicle').value;
+  const rate={Bike:5,Auto:7,Car:15,Pickup:20,'Mini Truck':30,Truck:90}[vehicle];
+  const routeUrl='https://router.project-osrm.org/route/v1/driving/'+Number(p.pickupLongitude)+','+Number(p.pickupLatitude)+';'+destination.longitude+','+destination.latitude+'?overview=false';
+  const routeResponse=await fetch(routeUrl);if(!routeResponse.ok)throw new Error('Road route service abhi available nahi hai.');
+  const routeData=await routeResponse.json();const meters=routeData.routes?.[0]?.distance;
+  if(!Number.isFinite(meters))throw new Error('Road distance calculate nahi ho paayi.');
+  const distanceKm=meters/1000,deliveryFee=Math.round(distanceKm*rate);
+  const itemTotal=Number(p[kind==='buy'?'buy':'rent'])*qty*days;
+  const totalPrice=Math.round(itemTotal+deliveryFee);
+  const now=new Date(),end=new Date(now.getTime()+days*86400000);
+  msg.textContent='Road distance: '+distanceKm.toFixed(1)+' km · Delivery: '+money(deliveryFee)+' · Total: '+money(totalPrice)+' · Order save ho raha hai…';
+  const permissions=[Appwrite.Permission.read(Appwrite.Role.user(currentUser.$id)),Appwrite.Permission.read(Appwrite.Role.user(p.sellerId))];
+  const data={buyerId:currentUser.$id,sellerId:p.sellerId,productId:p.id,quantity:qty,totalPrice,orderType:kind==='buy'?'Buy':'Rent',deliveryMode:'Delivery',vehicleType:vehicle,pickupAddress:p.pickupAddress,deliveryAddress,rentalStartDate:kind==='rent'?now.toISOString():null,rentalEndDate:kind==='rent'?end.toISOString():null,status:'Awaiting Payment',createdAt:now.toISOString(),deliveryFee,distanceKm,driverEarning:0,paymentMethod:'Not selected',paymentStatus:'pending',amountPaidOnline:0,amountDueOnDelivery:0,deliveryStatus:'pending',pickupLatitude:Number(p.pickupLatitude),pickupLongitude:Number(p.pickupLongitude),deliveryLatitude:destination.latitude,deliveryLongitude:destination.longitude};
+  await tablesDB.createRow({databaseId:APPWRITE_DATABASE_ID,tableId:'6aee8f9400093f1ae7cc',rowId:Appwrite.ID.unique(),data,permissions});
+  document.getElementById('modalContent').innerHTML='<h2>Order request saved</h2><div class="notice">Product: '+escapeHTML(p.name)+'<br>Road distance: '+distanceKm.toFixed(1)+' km<br>Delivery charge: '+money(deliveryFee)+'<br>Total: '+money(totalPrice)+'<br>Payment: Pending</div><p>Yeh abhi unpaid order request hai. Online payment aur COD advance collection agle step mein secure backend se connect karna hoga.</p><button class="solid" onclick="openProfileOrders()">VIEW MY ORDERS</button>';
+ }catch(error){msg.textContent='Order save nahi hua: '+(error.message||'Unknown error');btn.disabled=false;btn.textContent='CALCULATE & PLACE ORDER REQUEST';}
+}
 renderProducts();
 loadLiveProducts();
 restoreSession();
