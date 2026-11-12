@@ -170,30 +170,30 @@ function collectAddress(prefix){
  return keys.map(key=>document.getElementById(prefix+key)?.value.trim()||'').filter(Boolean).join(', ')+', India';
 }
 async function geocodePickupAddress(address,prefix){
- const clean=String(address||'').trim();
- if(!clean) throw new Error('Pickup address bharein.');
+ const clean=String(address||'').trim(); if(!clean) throw new Error('Pickup address bharein.');
  const value=key=>document.getElementById(prefix+key)?.value.trim()||'';
  const house=value('house'),street=value('street'),area=value('area'),district=value('district'),city=value('city'),state=value('state'),pin=value('pin');
- const attempts=[];
- const structured=new URLSearchParams({format:'jsonv2',limit:'1',country:'India',state,city,county:district,street:[house,street,area].filter(Boolean).join(', '),postalcode:pin});
- attempts.push('https://nominatim.openstreetmap.org/search?'+structured.toString());
- const fallback=new URLSearchParams({format:'jsonv2',limit:'1',countrycodes:'in',q:[area,city,district,state,pin,'India'].filter(Boolean).join(', ')});
- attempts.push('https://nominatim.openstreetmap.org/search?'+fallback.toString());
- let hadNetworkError=false;
- for(let i=0;i<attempts.length;i++){
+ const landmark=value('landmark');
+ const core=[house,street,area,district,city,state,pin,'India'].filter(Boolean).join(', ');
+ const queries=[core,[area,district,city,state,pin,'India'].filter(Boolean).join(', '),[city,state,pin,'India'].filter(Boolean).join(', ')];
+ let networkIssue=false;
+ for(const q of [...new Set(queries)]){
   try{
-   if(i>0) await new Promise(resolve=>setTimeout(resolve,1100));
-   const response=await fetch(attempts[i],{headers:{'Accept':'application/json'}});
-   if(!response.ok){hadNetworkError=true;continue;}
-   const results=await response.json();
-   if(results.length){
-    const latitude=Number(results[0].lat),longitude=Number(results[0].lon);
-    if(Number.isFinite(latitude)&&Number.isFinite(longitude)) return {latitude,longitude,displayName:results[0].display_name||clean};
-   }
-  }catch(error){hadNetworkError=true;}
+   const photon='https://photon.komoot.io/api/?limit=1&lang=en&q='+encodeURIComponent(q);
+   const pr=await fetch(photon,{headers:{'Accept':'application/json'}});
+   if(pr.ok){const pj=await pr.json();const c=pj.features?.[0]?.geometry?.coordinates;if(c&&Number.isFinite(Number(c[0]))&&Number.isFinite(Number(c[1]))) return {latitude:Number(c[1]),longitude:Number(c[0]),displayName:pj.features[0].properties?.name||q};}
+  }catch(e){networkIssue=true;}
  }
- if(hadNetworkError) throw new Error('Map location service abhi jawab nahi de rahi. Thodi der baad dobara try karein.');
- throw new Error('Is address ki exact map location nahi mili. Street/Road aur Area ka spelling check karein, aur PIN Code sahi bharein.');
+ for(const q of [...new Set(queries)]){
+  try{
+   const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=in&q='+encodeURIComponent(q);
+   const r=await fetch(url,{headers:{'Accept':'application/json'}}); if(!r.ok){networkIssue=true;continue;}
+   const data=await r.json(); const hit=data[0];
+   if(hit&&Number.isFinite(Number(hit.lat))&&Number.isFinite(Number(hit.lon))) return {latitude:Number(hit.lat),longitude:Number(hit.lon),displayName:hit.display_name||q};
+  }catch(e){networkIssue=true;}
+ }
+ if(networkIssue) throw new Error('Map service se connection nahi ho pa raha. Internet ya map service ki dikkat hai; thodi der baad try karein.');
+ throw new Error('Map par is PIN Code/area ki location nahi mili. Abhi address save nahi hua. Aapka PIN Code aur area ek baar verify karein.');
 }
 async function openSellerAddress(){
  if(!currentUser||currentProfile?.role!=='Seller'){alert('Seller account se login karein.');return;}
