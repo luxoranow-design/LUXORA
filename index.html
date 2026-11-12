@@ -161,12 +161,25 @@ function toggleProductPickupAddress(){
 async function geocodePickupAddress(address){
  const query=String(address||'').trim();
  if(!query) throw new Error('Pickup address bharein.');
- const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(query);
- const response=await fetch(url,{headers:{'Accept':'application/json'}});
- if(!response.ok) throw new Error('Address location nahi mil paayi. Thodi der baad try karein.');
- const results=await response.json();
- if(!results.length) throw new Error('Address nahi mila. House, area, city aur PIN code ke saath dobara likhein.');
- return {latitude:Number(results[0].lat),longitude:Number(results[0].lon),displayName:results[0].display_name||query};
+ const clean=query.replace(/\\s+/g,' ').replace(/,\\s*/g,', ').trim();
+ const variants=[clean,clean+', India'];
+ const withoutHouse=clean.replace(/^\\s*[^,]+,\\s*/,'');
+ if(withoutHouse&&withoutHouse!==clean) variants.push(withoutHouse+', India');
+ let lastError=null;
+ for(const searchText of [...new Set(variants)]){
+  try{
+   const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=in&q='+encodeURIComponent(searchText);
+   const response=await fetch(url,{headers:{'Accept':'application/json'}});
+   if(!response.ok){lastError=new Error('Address location service abhi available nahi hai.');continue;}
+   const results=await response.json();
+   if(results.length){
+    const latitude=Number(results[0].lat),longitude=Number(results[0].lon);
+    if(Number.isFinite(latitude)&&Number.isFinite(longitude)) return {latitude,longitude,displayName:results[0].display_name||searchText};
+   }
+  }catch(error){lastError=error;}
+ }
+ if(lastError) throw new Error('Address location nahi mil paayi. Internet check karke thodi der baad try karein.');
+ throw new Error('Map par address nahi mila. House number hata kar sirf colony, area, city aur PIN code likhkar try karein.');
 }
 async function openSellerAddress(){
  if(!currentUser||currentProfile?.role!=='Seller'){alert('Seller account se login karein.');return;}
