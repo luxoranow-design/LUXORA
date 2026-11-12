@@ -161,9 +161,9 @@ function toggleProductPickupAddress(){
 async function geocodePickupAddress(address){
  const query=String(address||'').trim();
  if(!query) throw new Error('Pickup address bharein.');
- const clean=query.replace(/\\s+/g,' ').replace(/,\\s*/g,', ').trim();
+ const clean=query.replace(/\s+/g,' ').replace(/,\s*/g,', ').trim();
  const variants=[clean,clean+', India'];
- const withoutHouse=clean.replace(/^\\s*[^,]+,\\s*/,'');
+ const withoutHouse=clean.replace(/^\s*[^,]+,\s*/,'');
  if(withoutHouse&&withoutHouse!==clean) variants.push(withoutHouse+', India');
  let lastError=null;
  for(const searchText of [...new Set(variants)]){
