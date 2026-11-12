@@ -169,28 +169,31 @@ function collectAddress(prefix){
  const pin=document.getElementById(prefix+'pin').value.trim(); if(!/^[0-9]{6}$/.test(pin)) throw new Error('PIN Code 6 digit ka hona chahiye.');
  return keys.map(key=>document.getElementById(prefix+key)?.value.trim()||'').filter(Boolean).join(', ')+', India';
 }
-async function geocodePickupAddress(address){
- const query=String(address||'').trim();
- if(!query) throw new Error('Pickup address bharein.');
- const clean=query.replace(/\s+/g,' ').replace(/,\s*/g,', ').trim();
- const variants=[clean,clean+', India'];
- const withoutHouse=clean.replace(/^\s*[^,]+,\s*/,'');
- if(withoutHouse&&withoutHouse!==clean) variants.push(withoutHouse+', India');
- let lastError=null;
- for(const searchText of [...new Set(variants)]){
+async function geocodePickupAddress(address,prefix){
+ const clean=String(address||'').trim();
+ if(!clean) throw new Error('Pickup address bharein.');
+ const value=key=>document.getElementById(prefix+key)?.value.trim()||'';
+ const house=value('house'),street=value('street'),area=value('area'),district=value('district'),city=value('city'),state=value('state'),pin=value('pin');
+ const attempts=[];
+ const structured=new URLSearchParams({format:'jsonv2',limit:'1',country:'India',state,city,county:district,street:[house,street,area].filter(Boolean).join(', '),postalcode:pin});
+ attempts.push('https://nominatim.openstreetmap.org/search?'+structured.toString());
+ const fallback=new URLSearchParams({format:'jsonv2',limit:'1',countrycodes:'in',q:[area,city,district,state,pin,'India'].filter(Boolean).join(', ')});
+ attempts.push('https://nominatim.openstreetmap.org/search?'+fallback.toString());
+ let hadNetworkError=false;
+ for(let i=0;i<attempts.length;i++){
   try{
-   const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=in&q='+encodeURIComponent(searchText);
-   const response=await fetch(url,{headers:{'Accept':'application/json'}});
-   if(!response.ok){lastError=new Error('Address location service abhi available nahi hai.');continue;}
+   if(i>0) await new Promise(resolve=>setTimeout(resolve,1100));
+   const response=await fetch(attempts[i],{headers:{'Accept':'application/json'}});
+   if(!response.ok){hadNetworkError=true;continue;}
    const results=await response.json();
    if(results.length){
     const latitude=Number(results[0].lat),longitude=Number(results[0].lon);
-    if(Number.isFinite(latitude)&&Number.isFinite(longitude)) return {latitude,longitude,displayName:results[0].display_name||searchText};
+    if(Number.isFinite(latitude)&&Number.isFinite(longitude)) return {latitude,longitude,displayName:results[0].display_name||clean};
    }
-  }catch(error){lastError=error;}
+  }catch(error){hadNetworkError=true;}
  }
- if(lastError) throw new Error('Address location nahi mil paayi. Internet check karke thodi der baad try karein.');
- throw new Error('Map par address nahi mila. House number hata kar sirf colony, area, city aur PIN code likhkar try karein.');
+ if(hadNetworkError) throw new Error('Map location service abhi jawab nahi de rahi. Thodi der baad dobara try karein.');
+ throw new Error('Is address ki exact map location nahi mili. Street/Road aur Area ka spelling check karein, aur PIN Code sahi bharein.');
 }
 async function openSellerAddress(){
  if(!currentUser||currentProfile?.role!=='Seller'){alert('Seller account se login karein.');return;}
@@ -206,7 +209,7 @@ async function saveSellerAddress(event){
  let address; try{address=collectAddress('sellerPickup');}catch(error){message.textContent=error.message;button.disabled=false;return;}
  button.disabled=true;message.textContent='Address ki map location dhoondh rahe hain…';
  try{
-  const point=await geocodePickupAddress(address);
+  const point=await geocodePickupAddress(address,'sellerPickup');
   const updated=await tablesDB.updateRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:currentUser.$id,data:{pickupAddress:address,pickupLatitude:point.latitude,pickupLongitude:point.longitude}});
   currentProfile=updated;
   message.textContent='Aapka saved pickup address successfully save ho gaya.';
@@ -243,7 +246,7 @@ async function handleAddProduct(event){
    pickupLatitude=Number(pickupLatitude);pickupLongitude=Number(pickupLongitude);
   }else{
    pickupAddress=collectAddress('pPickup');
-   const point=await geocodePickupAddress(pickupAddress);
+   const point=await geocodePickupAddress(pickupAddress,'pPickup');
    pickupLatitude=point.latitude;pickupLongitude=point.longitude;
   }
   if(!(price>0) || !(stock>=1) || !(weight>=0)) throw new Error('Price, stock aur weight sahi bharein.');
