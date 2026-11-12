@@ -144,10 +144,53 @@ function openAddProduct(){
    <div class="form-row"><label>Stock / quantity</label><input id="pStock" type="number" min="1" step="1" value="1" required></div>
    <div class="form-row"><label>Weight (kg, if known)</label><input id="pWeight" type="number" min="0" step="0.01" value="0"></div>
    <div class="form-row"><label>Vehicle needed for delivery</label><select id="pVehicle"><option value="">Not specified</option><option>Bike</option><option>Auto</option><option>Car</option><option>Pickup</option><option>Mini Truck</option><option>Truck</option></select></div>
+   <div class="form-row"><label>Pickup address for this product</label><select id="pPickupType" onchange="toggleProductPickupAddress()"><option value="Saved">Use my saved Seller address</option><option value="New">Use a different address for this product</option></select></div>
+   <div class="form-row" id="productPickupAddressRow" style="display:none"><label>New pickup address</label><textarea id="pPickupAddress" rows="3" maxlength="500" placeholder="House / shop, street, area, city, state, PIN code" style="padding:12px;border:1px solid var(--line);width:100%;font:inherit"></textarea></div>
+   <div class="notice">Saved address: <span id="savedPickupAddressLabel"></span></div>
    <div class="form-row"><label>Product photo</label><input id="pImage" type="file" accept="image/*" required></div>
    <button class="solid" id="productSubmit" style="width:100%;padding:13px">UPLOAD PRODUCT</button>
   </form><div class="notice" id="productMessage" aria-live="polite">Photo and product details will be saved to Appwrite.</div>`;
+ const savedLabel=document.getElementById('savedPickupAddressLabel');
+ if(savedLabel) savedLabel.textContent=currentProfile?.pickupAddress||'No saved address yet — add one using PICKUP ADDRESS.';
  document.getElementById('modalBack').classList.add('show');
+}
+function toggleProductPickupAddress(){
+ const row=document.getElementById('productPickupAddressRow');
+ if(row) row.style.display=document.getElementById('pPickupType').value==='New'?'grid':'none';
+}
+async function geocodePickupAddress(address){
+ const query=String(address||'').trim();
+ if(!query) throw new Error('Pickup address bharein.');
+ const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(query);
+ const response=await fetch(url,{headers:{'Accept':'application/json'}});
+ if(!response.ok) throw new Error('Address location nahi mil paayi. Thodi der baad try karein.');
+ const results=await response.json();
+ if(!results.length) throw new Error('Address nahi mila. House, area, city aur PIN code ke saath dobara likhein.');
+ return {latitude:Number(results[0].lat),longitude:Number(results[0].lon),displayName:results[0].display_name||query};
+}
+async function openSellerAddress(){
+ if(!currentUser||currentProfile?.role!=='Seller'){alert('Seller account se login karein.');return;}
+ const address=escapeHTML(currentProfile.pickupAddress||'');
+ document.getElementById('modalContent').innerHTML=`
+  <h2>My saved pickup address</h2><p>Yeh address aapke Seller account mein save rahega. Product add karte waqt aap ise use kar sakte hain ya kisi ek product ke liye alag address de sakte hain.</p>
+  <form onsubmit="saveSellerAddress(event)">
+   <div class="form-row"><label>Shop / pickup address</label><textarea id="sellerPickupAddress" rows="4" maxlength="500" required placeholder="House / shop, street, area, city, state, PIN code" style="padding:12px;border:1px solid var(--line);width:100%;font:inherit">${address}</textarea></div>
+   <button class="solid" id="sellerAddressSubmit" style="width:100%;padding:13px">SAVE ADDRESS</button>
+  </form><div class="notice" id="sellerAddressMessage">Address save karne par map location bhi find ki jayegi.</div>`;
+ document.getElementById('modalBack').classList.add('show');
+}
+async function saveSellerAddress(event){
+ event.preventDefault();
+ const button=document.getElementById('sellerAddressSubmit'),message=document.getElementById('sellerAddressMessage');
+ const address=document.getElementById('sellerPickupAddress').value.trim();
+ button.disabled=true;message.textContent='Address ki map location dhoondh rahe hain…';
+ try{
+  const point=await geocodePickupAddress(address);
+  const updated=await tablesDB.updateRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:currentUser.$id,data:{pickupAddress:address,pickupLatitude:point.latitude,pickupLongitude:point.longitude}});
+  currentProfile=updated;
+  message.textContent='Aapka saved pickup address successfully save ho gaya.';
+  button.textContent='SAVED';
+ }catch(error){message.textContent='Address save nahi hua: '+(error.message||'Unknown error');button.disabled=false;}
 }
 async function handleAddProduct(event){
  event.preventDefault();
@@ -169,13 +212,25 @@ async function handleAddProduct(event){
   const stock=Number(document.getElementById('pStock').value);
   const weight=Number(document.getElementById('pWeight').value||0);
   const vehicleType=document.getElementById('pVehicle').value;
+  const pickupAddressType=document.getElementById('pPickupType').value;
+  let pickupAddress='',pickupLatitude=null,pickupLongitude=null;
+  if(pickupAddressType==='Saved'){
+   pickupAddress=String(currentProfile?.pickupAddress||'').trim();
+   pickupLatitude=Number(currentProfile?.pickupLatitude);
+   pickupLongitude=Number(currentProfile?.pickupLongitude);
+   if(!pickupAddress||!Number.isFinite(pickupLatitude)||!Number.isFinite(pickupLongitude)) throw new Error('Pehle PICKUP ADDRESS button se apna saved address save karein.');
+  }else{
+   pickupAddress=document.getElementById('pPickupAddress').value.trim();
+   const point=await geocodePickupAddress(pickupAddress);
+   pickupLatitude=point.latitude;pickupLongitude=point.longitude;
+  }
   if(!(price>0) || !(stock>=1) || !(weight>=0)) throw new Error('Price, stock aur weight sahi bharein.');
   const filePermissions=[Appwrite.Permission.read(Appwrite.Role.any()),Appwrite.Permission.update(Appwrite.Role.user(currentUser.$id)),Appwrite.Permission.delete(Appwrite.Role.user(currentUser.$id))];
   const uploaded=await storage.createFile({bucketId:PRODUCTS_BUCKET_ID,fileId:Appwrite.ID.unique(),file,permissions:filePermissions});
   uploadedFileId=uploaded.$id;
   msg.textContent='Photo upload ho gayi. Product save ho raha hai…';
   const rowPermissions=[Appwrite.Permission.read(Appwrite.Role.any()),Appwrite.Permission.update(Appwrite.Role.user(currentUser.$id)),Appwrite.Permission.delete(Appwrite.Role.user(currentUser.$id))];
-  await tablesDB.createRow({databaseId:APPWRITE_DATABASE_ID,tableId:PRODUCTS_TABLE_ID,rowId:Appwrite.ID.unique(),data:{sellerId:currentUser.$id,title,description,category,price,listingType,condition,imageId:uploadedFileId,stock,weight,vehicleType,status:'Available',createdAt:new Date().toISOString()},permissions:rowPermissions});
+  await tablesDB.createRow({databaseId:APPWRITE_DATABASE_ID,tableId:PRODUCTS_TABLE_ID,rowId:Appwrite.ID.unique(),data:{sellerId:currentUser.$id,title,description,category,price,listingType,condition,imageId:uploadedFileId,stock,weight,vehicleType,pickupAddress,pickupLatitude,pickupLongitude,pickupAddressType,status:'Available',createdAt:new Date().toISOString()},permissions:rowPermissions});
   msg.textContent='Product successfully Appwrite mein save ho gaya!';
   btn.textContent='SAVED';
   await loadLiveProducts();
@@ -260,7 +315,7 @@ async function refreshAuthButtons(){
  if(!actions)return;
  if(currentUser){
   const role=currentProfile?.role;
-  const roleAction=role==='Seller'?'<button class="solid" onclick="openAddProduct()">ADD PRODUCT</button>':role==='Driver'?'<button class="solid" onclick="openDriverDashboard()">DRIVER DASHBOARD</button>':'';
+  const roleAction=role==='Seller'?'<button class="outline" onclick="openSellerAddress()">PICKUP ADDRESS</button><button class="solid" onclick="openAddProduct()">ADD PRODUCT</button>':role==='Driver'?'<button class="solid" onclick="openDriverDashboard()">DRIVER DASHBOARD</button>':'';
   actions.innerHTML=`${roleAction}<span style="font-size:11px;align-self:center">${(currentUser.name||currentUser.email).replace(/[<>]/g,'')}</span><button class="outline" onclick="logoutUser()">LOG OUT</button>`;
  }else{
   actions.innerHTML=`<button class="outline" onclick="openModal('login')">LOG IN</button><button class="solid" onclick="openModal('sell')">START SELLING</button>`;
