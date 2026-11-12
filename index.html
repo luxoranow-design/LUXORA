@@ -35,6 +35,9 @@ footer{background:#191a18;color:#ddd6c9;padding:35px 22px}.foot{max-width:1180px
 .modal-back{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;padding:18px;z-index:30}.modal-back.show{display:flex}.modal{background:white;width:min(440px,100%);padding:25px;position:relative}.modal h2{font:normal 26px Georgia;margin:0 0 8px}.modal p{font-size:12px;color:var(--muted);line-height:1.6}.close{position:absolute;right:15px;top:12px;border:0;background:none;font-size:23px}.form-row{display:grid;gap:6px;margin:13px 0}.form-row label{font-size:11px;color:#555}.form-row input,.form-row select{padding:12px;border:1px solid var(--line);width:100%}.notice{font-size:11px;color:#766746;background:#f5f0e6;padding:10px;margin-top:12px;line-height:1.5}
 @media(max-width:800px){.nav{gap:12px;padding:14px}.navlinks{display:none}.nav-actions{margin-left:auto}.hero-inner{grid-template-columns:1fr}.hero-copy{padding:40px 28px 25px}.hero-art{min-height:220px}.orb{width:165px;height:165px}.orb-inner{width:125px;height:125px;font-size:52px}.categories{grid-template-columns:repeat(3,1fr)}.products{grid-template-columns:repeat(2,1fr)}.product-image{height:145px}.seller{padding:27px;align-items:flex-start;flex-direction:column}.foot{align-items:flex-start;flex-direction:column}}
 @media(max-width:420px){.logo{font-size:22px}.nav-actions .outline{display:none}.hero-buttons{flex-wrap:wrap}.products{gap:9px}.product-info{padding:11px}.product h3{font-size:16px}.product-image{height:125px}.section-head h2{font-size:26px}}
+
+/* Driver dashboard preview */
+.driver-dashboard{max-width:760px;margin:auto}.driver-top{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#20211d;color:#fff;padding:18px;margin:14px 0}.driver-top small{color:#d7c9aa}.driver-status{border:0;padding:10px 14px;background:#c3a16a;color:#171815;font-weight:700}.driver-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:12px 0}.driver-stat{background:#f5f1e8;border:1px solid var(--line);padding:14px}.driver-stat b{display:block;font:normal 23px Georgia;margin-top:5px}.driver-stat span{font-size:10px;color:var(--muted);letter-spacing:.5px}.driver-panel{border:1px solid var(--line);padding:16px;margin:12px 0;background:#fff}.driver-panel h3{font:normal 20px Georgia;margin:0 0 8px}.driver-preview-note{background:#fff4db;color:#72582a;padding:12px;font-size:11px;line-height:1.5;margin-top:12px}@media(max-width:520px){.driver-stats{grid-template-columns:repeat(2,1fr)}.driver-top{align-items:flex-start;flex-direction:column}}
 </style>
 </head>
 <body>
@@ -141,10 +144,53 @@ function openAddProduct(){
    <div class="form-row"><label>Stock / quantity</label><input id="pStock" type="number" min="1" step="1" value="1" required></div>
    <div class="form-row"><label>Weight (kg, if known)</label><input id="pWeight" type="number" min="0" step="0.01" value="0"></div>
    <div class="form-row"><label>Vehicle needed for delivery</label><select id="pVehicle"><option value="">Not specified</option><option>Bike</option><option>Auto</option><option>Car</option><option>Pickup</option><option>Mini Truck</option><option>Truck</option></select></div>
+   <div class="form-row"><label>Pickup address for this product</label><select id="pPickupType" onchange="toggleProductPickupAddress()"><option value="Saved">Use my saved Seller address</option><option value="New">Use a different address for this product</option></select></div>
+   <div class="form-row" id="productPickupAddressRow" style="display:none"><label>New pickup address</label><textarea id="pPickupAddress" rows="3" maxlength="500" placeholder="House / shop, street, area, city, state, PIN code" style="padding:12px;border:1px solid var(--line);width:100%;font:inherit"></textarea></div>
+   <div class="notice">Saved address: <span id="savedPickupAddressLabel"></span></div>
    <div class="form-row"><label>Product photo</label><input id="pImage" type="file" accept="image/*" required></div>
    <button class="solid" id="productSubmit" style="width:100%;padding:13px">UPLOAD PRODUCT</button>
   </form><div class="notice" id="productMessage" aria-live="polite">Photo and product details will be saved to Appwrite.</div>`;
+ const savedLabel=document.getElementById('savedPickupAddressLabel');
+ if(savedLabel) savedLabel.textContent=currentProfile?.pickupAddress||'No saved address yet — add one using PICKUP ADDRESS.';
  document.getElementById('modalBack').classList.add('show');
+}
+function toggleProductPickupAddress(){
+ const row=document.getElementById('productPickupAddressRow');
+ if(row) row.style.display=document.getElementById('pPickupType').value==='New'?'grid':'none';
+}
+async function geocodePickupAddress(address){
+ const query=String(address||'').trim();
+ if(!query) throw new Error('Pickup address bharein.');
+ const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(query);
+ const response=await fetch(url,{headers:{'Accept':'application/json'}});
+ if(!response.ok) throw new Error('Address location nahi mil paayi. Thodi der baad try karein.');
+ const results=await response.json();
+ if(!results.length) throw new Error('Address nahi mila. House, area, city aur PIN code ke saath dobara likhein.');
+ return {latitude:Number(results[0].lat),longitude:Number(results[0].lon),displayName:results[0].display_name||query};
+}
+async function openSellerAddress(){
+ if(!currentUser||currentProfile?.role!=='Seller'){alert('Seller account se login karein.');return;}
+ const address=escapeHTML(currentProfile.pickupAddress||'');
+ document.getElementById('modalContent').innerHTML=`
+  <h2>My saved pickup address</h2><p>Yeh address aapke Seller account mein save rahega. Product add karte waqt aap ise use kar sakte hain ya kisi ek product ke liye alag address de sakte hain.</p>
+  <form onsubmit="saveSellerAddress(event)">
+   <div class="form-row"><label>Shop / pickup address</label><textarea id="sellerPickupAddress" rows="4" maxlength="500" required placeholder="House / shop, street, area, city, state, PIN code" style="padding:12px;border:1px solid var(--line);width:100%;font:inherit">${address}</textarea></div>
+   <button class="solid" id="sellerAddressSubmit" style="width:100%;padding:13px">SAVE ADDRESS</button>
+  </form><div class="notice" id="sellerAddressMessage">Address save karne par map location bhi find ki jayegi.</div>`;
+ document.getElementById('modalBack').classList.add('show');
+}
+async function saveSellerAddress(event){
+ event.preventDefault();
+ const button=document.getElementById('sellerAddressSubmit'),message=document.getElementById('sellerAddressMessage');
+ const address=document.getElementById('sellerPickupAddress').value.trim();
+ button.disabled=true;message.textContent='Address ki map location dhoondh rahe hain…';
+ try{
+  const point=await geocodePickupAddress(address);
+  const updated=await tablesDB.updateRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:currentUser.$id,data:{pickupAddress:address,pickupLatitude:point.latitude,pickupLongitude:point.longitude}});
+  currentProfile=updated;
+  message.textContent='Aapka saved pickup address successfully save ho gaya.';
+  button.textContent='SAVED';
+ }catch(error){message.textContent='Address save nahi hua: '+(error.message||'Unknown error');button.disabled=false;}
 }
 async function handleAddProduct(event){
  event.preventDefault();
@@ -166,13 +212,26 @@ async function handleAddProduct(event){
   const stock=Number(document.getElementById('pStock').value);
   const weight=Number(document.getElementById('pWeight').value||0);
   const vehicleType=document.getElementById('pVehicle').value;
+  const pickupAddressType=document.getElementById('pPickupType').value;
+  let pickupAddress='',pickupLatitude=null,pickupLongitude=null;
+  if(pickupAddressType==='Saved'){
+   pickupAddress=String(currentProfile?.pickupAddress||'').trim();
+   pickupLatitude=currentProfile?.pickupLatitude;
+   pickupLongitude=currentProfile?.pickupLongitude;
+   if(!pickupAddress||pickupLatitude==null||pickupLongitude==null||!Number.isFinite(Number(pickupLatitude))||!Number.isFinite(Number(pickupLongitude))) throw new Error('Pehle PICKUP ADDRESS button se apna saved address save karein.');
+   pickupLatitude=Number(pickupLatitude);pickupLongitude=Number(pickupLongitude);
+  }else{
+   pickupAddress=document.getElementById('pPickupAddress').value.trim();
+   const point=await geocodePickupAddress(pickupAddress);
+   pickupLatitude=point.latitude;pickupLongitude=point.longitude;
+  }
   if(!(price>0) || !(stock>=1) || !(weight>=0)) throw new Error('Price, stock aur weight sahi bharein.');
   const filePermissions=[Appwrite.Permission.read(Appwrite.Role.any()),Appwrite.Permission.update(Appwrite.Role.user(currentUser.$id)),Appwrite.Permission.delete(Appwrite.Role.user(currentUser.$id))];
   const uploaded=await storage.createFile({bucketId:PRODUCTS_BUCKET_ID,fileId:Appwrite.ID.unique(),file,permissions:filePermissions});
   uploadedFileId=uploaded.$id;
   msg.textContent='Photo upload ho gayi. Product save ho raha hai…';
   const rowPermissions=[Appwrite.Permission.read(Appwrite.Role.any()),Appwrite.Permission.update(Appwrite.Role.user(currentUser.$id)),Appwrite.Permission.delete(Appwrite.Role.user(currentUser.$id))];
-  await tablesDB.createRow({databaseId:APPWRITE_DATABASE_ID,tableId:PRODUCTS_TABLE_ID,rowId:Appwrite.ID.unique(),data:{sellerId:currentUser.$id,title,description,category,price,listingType,condition,imageId:uploadedFileId,stock,weight,vehicleType,status:'Available',createdAt:new Date().toISOString()},permissions:rowPermissions});
+  await tablesDB.createRow({databaseId:APPWRITE_DATABASE_ID,tableId:PRODUCTS_TABLE_ID,rowId:Appwrite.ID.unique(),data:{sellerId:currentUser.$id,title,description,category,price,listingType,condition,imageId:uploadedFileId,stock,weight,vehicleType,pickupAddress,pickupLatitude,pickupLongitude,pickupAddressType,status:'Available',createdAt:new Date().toISOString()},permissions:rowPermissions});
   msg.textContent='Product successfully Appwrite mein save ho gaya!';
   btn.textContent='SAVED';
   await loadLiveProducts();
@@ -256,7 +315,9 @@ async function refreshAuthButtons(){
  const actions=document.querySelector('.nav-actions');
  if(!actions)return;
  if(currentUser){
-  actions.innerHTML=`${currentProfile?.role==='Seller'?'<button class="solid" onclick="openAddProduct()">ADD PRODUCT</button>':''}<span style="font-size:11px;align-self:center">${(currentUser.name||currentUser.email).replace(/[<>]/g,'')}</span><button class="outline" onclick="logoutUser()">LOG OUT</button>`;
+  const role=currentProfile?.role;
+  const roleAction=role==='Seller'?'<button class="outline" onclick="openSellerAddress()">PICKUP ADDRESS</button><button class="solid" onclick="openAddProduct()">ADD PRODUCT</button>':role==='Driver'?'<button class="solid" onclick="openDriverDashboard()">DRIVER DASHBOARD</button>':'';
+  actions.innerHTML=`${roleAction}<span style="font-size:11px;align-self:center">${(currentUser.name||currentUser.email).replace(/[<>]/g,'')}</span><button class="outline" onclick="logoutUser()">LOG OUT</button>`;
  }else{
   actions.innerHTML=`<button class="outline" onclick="openModal('login')">LOG IN</button><button class="solid" onclick="openModal('sell')">START SELLING</button>`;
  }
@@ -269,6 +330,23 @@ async function restoreSession(){
  try{currentUser=await account.get();try{currentProfile=await tablesDB.getRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:currentUser.$id});}catch(_){currentProfile=null;}refreshAuthButtons();}
  catch(_){currentUser=null;}
 }
+let driverOnlinePreview=false;
+function openDriverDashboard(){
+ if(!currentUser || currentProfile?.role!=='Driver'){alert('Driver account se login karein.');return;}
+ const vehicle=escapeHTML(currentProfile.vehicleType||'Vehicle not selected');
+ const person=escapeHTML(currentUser.name||'Driver');
+ const status=driverOnlinePreview?'ONLINE (PREVIEW)':'OFFLINE (PREVIEW)';
+ const action=driverOnlinePreview?'GO OFFLINE':'GO ONLINE';
+ document.getElementById('modalContent').innerHTML=
+  '<div class="driver-dashboard"><h2>Driver Dashboard</h2><p>Welcome, '+person+' · '+vehicle+'</p>'+
+  '<div class="driver-top"><div><b>Driver availability</b><br><small>'+status+'</small></div><button class="driver-status" onclick="toggleDriverPreview()">'+action+'</button></div>'+
+  '<div class="driver-stats"><div class="driver-stat"><span>TODAY\'S EARNINGS</span><b>₹0</b></div><div class="driver-stat"><span>TOTAL EARNINGS</span><b>₹0</b></div><div class="driver-stat"><span>COMPLETED DELIVERIES</span><b>0</b></div><div class="driver-stat"><span>PENDING DELIVERIES</span><b>0</b></div></div>'+
+  '<div class="driver-panel"><h3>Available deliveries</h3><p class="sub">No live delivery data is connected yet.</p></div>'+
+  '<div class="driver-panel"><h3>LUXORA Wallet</h3><p class="sub">Wallet balance: ₹0 · Withdrawals are not enabled yet.</p></div>'+
+  '<div class="driver-preview-note"><b>Preview only:</b> Online status, delivery acceptance, live tracking, earnings, wallet withdrawals and ratings will not work until the secure Appwrite backend and database fields are added and tested.</div></div>';
+ document.getElementById('modalBack').classList.add('show');
+}
+function toggleDriverPreview(){driverOnlinePreview=!driverOnlinePreview;openDriverDashboard();}
 function closeModal(){document.getElementById('modalBack').classList.remove('show')}
 function submitDemo(e,type){e.preventDefault();document.getElementById('modalContent').innerHTML=`<h2>Thank you!</h2><p>Your ${type==='listing'?'seller interest':'demo login'} form was completed in this preview. No data has been sent or stored.</p><button class="solid" onclick="closeModal()">CLOSE</button>`}
 function productAction(name,kind,price){document.getElementById('modalContent').innerHTML=`<h2>${kind==='buy'?'Buy':'Rent'} ${name}</h2><p>Displayed ${kind==='buy'?'purchase price':'rental price'}: <strong>${money(price)}${kind==='rent'?' (rental period shown on listing)':''}</strong></p><p>This is a front-end preview. Checkout, delivery address, seller contact and secure payment will be enabled after the backend is connected.</p><button class="solid" style="width:100%;padding:13px" onclick="closeModal()">GOT IT</button>`;document.getElementById('modalBack').classList.add('show')}
