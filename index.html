@@ -145,11 +145,12 @@ function openAddProduct(){
    <div class="form-row"><label>Weight (kg, if known)</label><input id="pWeight" type="number" min="0" step="0.01" value="0"></div>
    <div class="form-row"><label>Vehicle needed for delivery</label><select id="pVehicle"><option value="">Not specified</option><option>Bike</option><option>Auto</option><option>Car</option><option>Pickup</option><option>Mini Truck</option><option>Truck</option></select></div>
    <div class="form-row"><label>Pickup address for this product</label><select id="pPickupType" onchange="toggleProductPickupAddress()"><option value="Saved">Use my saved Seller address</option><option value="New">Use a different address for this product</option></select></div>
-   <div class="form-row" id="productPickupAddressRow" style="display:none"><label>New pickup address</label><textarea id="pPickupAddress" rows="3" maxlength="500" placeholder="House / shop, street, area, city, state, PIN code" style="padding:12px;border:1px solid var(--line);width:100%;font:inherit"></textarea></div>
+   <div class="form-row" id="productPickupAddressRow" style="display:none"><label>New pickup address</label><div id="pPickupFields"></div></div>
    <div class="notice">Saved address: <span id="savedPickupAddressLabel"></span></div>
    <div class="form-row"><label>Product photo</label><input id="pImage" type="file" accept="image/*" required></div>
    <button class="solid" id="productSubmit" style="width:100%;padding:13px">UPLOAD PRODUCT</button>
   </form><div class="notice" id="productMessage" aria-live="polite">Photo and product details will be saved to Appwrite.</div>`;
+ document.getElementById('pPickupFields').innerHTML=addressFields('pPickup');
  const savedLabel=document.getElementById('savedPickupAddressLabel');
  if(savedLabel) savedLabel.textContent=currentProfile?.pickupAddress||'No saved address yet — add one using PICKUP ADDRESS.';
  document.getElementById('modalBack').classList.add('show');
@@ -157,6 +158,16 @@ function openAddProduct(){
 function toggleProductPickupAddress(){
  const row=document.getElementById('productPickupAddressRow');
  if(row) row.style.display=document.getElementById('pPickupType').value==='New'?'grid':'none';
+}
+function addressFields(prefix, values={}){
+ const fields=[['House / Shop No.','house','e.g. 12, Shop 4'],['Street / Road','street','Street or road name'],['Area / Colony / Village','area','Area or colony'],['Landmark (optional)','landmark','Nearby landmark'],['District','district','District'],['City','city','City / town'],['State','state','State'],['PIN Code','pin','6-digit PIN code']];
+ return fields.map(([label,key,placeholder])=>'<div class="form-row"><label>'+label+'</label><input id="'+prefix+key+'" '+(key==='pin'?'inputmode="numeric" maxlength="6" pattern="[0-9]{6}"':'')+' '+(['area','city','state','pin'].includes(key)?'required':'')+' value="'+escapeHTML(values[key]||'')+'" placeholder="'+placeholder+'"></div>').join('');
+}
+function collectAddress(prefix){
+ const keys=['house','street','area','landmark','district','city','state','pin'];
+ for(const key of ['area','city','state','pin']) if(!document.getElementById(prefix+key)?.value.trim()) throw new Error('Area, City, State aur PIN Code zaroor bharein.');
+ const pin=document.getElementById(prefix+'pin').value.trim(); if(!/^[0-9]{6}$/.test(pin)) throw new Error('PIN Code 6 digit ka hona chahiye.');
+ return keys.map(key=>document.getElementById(prefix+key)?.value.trim()||'').filter(Boolean).join(', ')+', India';
 }
 async function geocodePickupAddress(address){
  const query=String(address||'').trim();
@@ -183,19 +194,16 @@ async function geocodePickupAddress(address){
 }
 async function openSellerAddress(){
  if(!currentUser||currentProfile?.role!=='Seller'){alert('Seller account se login karein.');return;}
- const address=escapeHTML(currentProfile.pickupAddress||'');
- document.getElementById('modalContent').innerHTML=`
-  <h2>My saved pickup address</h2><p>Yeh address aapke Seller account mein save rahega. Product add karte waqt aap ise use kar sakte hain ya kisi ek product ke liye alag address de sakte hain.</p>
-  <form onsubmit="saveSellerAddress(event)">
-   <div class="form-row"><label>Shop / pickup address</label><textarea id="sellerPickupAddress" rows="4" maxlength="500" required placeholder="House / shop, street, area, city, state, PIN code" style="padding:12px;border:1px solid var(--line);width:100%;font:inherit">${address}</textarea></div>
-   <button class="solid" id="sellerAddressSubmit" style="width:100%;padding:13px">SAVE ADDRESS</button>
-  </form><div class="notice" id="sellerAddressMessage">Address save karne par map location bhi find ki jayegi.</div>`;
+ const old=String(currentProfile.pickupAddress||'').split(',').map(x=>x.trim());
+ const values={house:old[0]||'',street:old[1]||'',area:old[2]||'',landmark:old[3]||'',district:old[4]||'',city:old[5]||'',state:old[6]||'',pin:(old[7]||'').replace(/[^0-9]/g,'').slice(0,6)};
+ document.getElementById('modalContent').innerHTML='<h2>My saved pickup address</h2><p>Har detail alag box mein bharein. Yeh address aapke Seller account mein save rahega.</p><form onsubmit="saveSellerAddress(event)"><div id="sellerPickupFields"></div><button class="solid" id="sellerAddressSubmit" style="width:100%;padding:13px">SAVE ADDRESS</button></form><div class="notice" id="sellerAddressMessage">Address save karne par map location bhi find ki jayegi.</div>';
+ document.getElementById('sellerPickupFields').innerHTML=addressFields('sellerPickup',values);
  document.getElementById('modalBack').classList.add('show');
 }
 async function saveSellerAddress(event){
  event.preventDefault();
  const button=document.getElementById('sellerAddressSubmit'),message=document.getElementById('sellerAddressMessage');
- const address=document.getElementById('sellerPickupAddress').value.trim();
+ let address; try{address=collectAddress('sellerPickup');}catch(error){message.textContent=error.message;button.disabled=false;return;}
  button.disabled=true;message.textContent='Address ki map location dhoondh rahe hain…';
  try{
   const point=await geocodePickupAddress(address);
@@ -234,7 +242,7 @@ async function handleAddProduct(event){
    if(!pickupAddress||pickupLatitude==null||pickupLongitude==null||!Number.isFinite(Number(pickupLatitude))||!Number.isFinite(Number(pickupLongitude))) throw new Error('Pehle PICKUP ADDRESS button se apna saved address save karein.');
    pickupLatitude=Number(pickupLatitude);pickupLongitude=Number(pickupLongitude);
   }else{
-   pickupAddress=document.getElementById('pPickupAddress').value.trim();
+   pickupAddress=collectAddress('pPickup');
    const point=await geocodePickupAddress(pickupAddress);
    pickupLatitude=point.latitude;pickupLongitude=point.longitude;
   }
