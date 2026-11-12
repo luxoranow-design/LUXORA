@@ -421,13 +421,27 @@ async function saveBuyerAddress(event){
  event.preventDefault();
  const button=document.getElementById('buyerAddressSubmit'),message=document.getElementById('buyerAddressMessage');
  let address;try{address=collectAddress('buyerSavedAddress');}catch(error){message.textContent=error.message;return;}
+ if(!currentUser){message.textContent='Pehle Buyer account se login karein.';return;}
  button.disabled=true;button.textContent='SAVING…';message.textContent='Buyer address Appwrite mein save ho raha hai…';
  try{
-  const updated=await tablesDB.updateRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:currentUser.$id,data:{buyerAddress:address}});
-  currentProfile=updated;
+  let profile=null;
+  try{profile=await tablesDB.getRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:currentUser.$id});}catch(_){}
+  if(!profile){
+   try{
+    const found=await tablesDB.listRows({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID});
+    profile=(found.rows||[]).find(row=>String(row.userId||'')===String(currentUser.$id))||null;
+   }catch(_){}
+  }
+  if(profile){
+   const updated=await tablesDB.updateRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:profile.$id,data:{buyerAddress:address}});
+   currentProfile=updated;
+  }else{
+   const permissions=[Appwrite.Permission.read(Appwrite.Role.user(currentUser.$id)),Appwrite.Permission.update(Appwrite.Role.user(currentUser.$id))];
+   currentProfile=await tablesDB.createRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:currentUser.$id,data:{userId:currentUser.$id,name:currentUser.name||'',email:currentUser.email||'',role:'Buyer',buyerAddress:address},permissions});
+  }
   message.textContent='Aapka delivery address successfully save ho gaya!';
   button.textContent='SAVED';
- }catch(error){message.textContent='Address save nahi hua: '+(error.message||'Unknown error')+'. Profiles Table mein buyerAddress String column check karein.';button.disabled=false;button.textContent='SAVE ADDRESS';}
+ }catch(error){message.textContent='Address save nahi hua: '+(error.message||'Unknown error')+'. Agar permission error aaye to Profiles Table mein CREATE/UPDATE access check karein.';button.disabled=false;button.textContent='SAVE ADDRESS';}
 }
 async function openProfileOrders(){
  if(!currentUser){openModal('login');return;}
