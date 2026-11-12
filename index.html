@@ -38,7 +38,7 @@ footer{background:#191a18;color:#ddd6c9;padding:35px 22px}.foot{max-width:1180px
 
 /* Driver dashboard preview */
 .driver-dashboard{max-width:760px;margin:auto}.driver-top{display:flex;justify-content:space-between;align-items:center;gap:12px;background:#20211d;color:#fff;padding:18px;margin:14px 0}.driver-top small{color:#d7c9aa}.driver-status{border:0;padding:10px 14px;background:#c3a16a;color:#171815;font-weight:700}.driver-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:12px 0}.driver-stat{background:#f5f1e8;border:1px solid var(--line);padding:14px}.driver-stat b{display:block;font:normal 23px Georgia;margin-top:5px}.driver-stat span{font-size:10px;color:var(--muted);letter-spacing:.5px}.driver-panel{border:1px solid var(--line);padding:16px;margin:12px 0;background:#fff}.driver-panel h3{font:normal 20px Georgia;margin:0 0 8px}.driver-preview-note{background:#fff4db;color:#72582a;padding:12px;font-size:11px;line-height:1.5;margin-top:12px}@media(max-width:520px){.driver-stats{grid-template-columns:repeat(2,1fr)}.driver-top{align-items:flex-start;flex-direction:column}}
-</style>
+.profile-page{display:grid;gap:16px}.profile-heading{display:flex;align-items:center;gap:14px;padding:10px 0}.profile-avatar{width:58px;height:58px;border-radius:50%;background:#eee;display:grid;place-items:center;font-size:25px;font-weight:700}.profile-heading h2{margin:0 0 5px}.profile-heading p{margin:0 0 4px}.profile-section{border-top:1px solid var(--line);padding-top:12px}.profile-section h3{margin:0 0 10px;font-size:15px}.profile-info{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}.profile-info span{color:var(--muted)}.profile-info b{text-align:right;overflow-wrap:anywhere}.profile-tile{width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:13px;border:1px solid var(--line);background:transparent;margin:7px 0;cursor:pointer;font:inherit}.profile-tile span{display:grid;gap:3px}.profile-tile small{color:var(--muted);font-size:11px}</style>
 </head>
 <body>
 <div class="topbar">A NEW WAY TO OWN MORE — BUY • RENT • SELL</div>
@@ -343,12 +343,32 @@ async function refreshAuthButtons(){
  if(!actions)return;
  if(currentUser){
   const role=currentProfile?.role;
-  const roleAction=role==='Seller'?'<button class="outline" onclick="openSellerAddress()">PICKUP ADDRESS</button><button class="solid" onclick="openAddProduct()">ADD PRODUCT</button>':role==='Driver'?'<button class="solid" onclick="openDriverDashboard()">DRIVER DASHBOARD</button>':'';
-  actions.innerHTML=`${roleAction}<span style="font-size:11px;align-self:center">${(currentUser.name||currentUser.email).replace(/[<>]/g,'')}</span><button class="outline" onclick="logoutUser()">LOG OUT</button>`;
+  const roleAction=role==='Seller'?'<button class="solid" onclick="openAddProduct()">ADD PRODUCT</button>':role==='Driver'?'<button class="outline" onclick="openDriverDashboard()">DRIVER DASHBOARD</button>':'';
+  actions.innerHTML=`<button class="outline" onclick="openProfile()">PROFILE</button>${roleAction}<span style="font-size:11px;align-self:center">${(currentUser.name||currentUser.email).replace(/[<>]/g,'')}</span><button class="outline" onclick="logoutUser()">LOG OUT</button>`;
  }else{
   actions.innerHTML=`<button class="outline" onclick="openModal('login')">LOG IN</button><button class="solid" onclick="openModal('sell')">START SELLING</button>`;
  }
 }
+function openProfile(){
+ if(!currentUser){openModal('login');return;}
+ const role=currentProfile?.role||'Buyer';
+ const name=escapeHTML(currentProfile?.name||currentUser.name||'LUXORA User');
+ const email=escapeHTML(currentProfile?.email||currentUser.email||'');
+ const address=escapeHTML(currentProfile?.pickupAddress||'No saved address yet');
+ const initial=escapeHTML((name.trim()[0]||'L').toUpperCase());
+ const roleTiles=role==='Seller' ? '<button class="profile-tile" onclick="openSellerAddress()">📍 <span><b>My Addresses</b><small>Manage saved pickup address</small></span></button><button class="profile-tile" onclick="openAddProduct()">📦 <span><b>Add Product</b><small>List a product for sale or rent</small></span></button><button class="profile-tile" onclick="openMyProducts()">🛍️ <span><b>My Products</b><small>View your uploaded listings</small></span></button>' : role==='Driver' ? '<button class="profile-tile" onclick="openDriverDashboard()">🚚 <span><b>Driver Dashboard</b><small>Vehicle, deliveries and earnings</small></span></button><button class="profile-tile" onclick="openProfileAddresses()">📍 <span><b>My Addresses</b><small>Manage your saved addresses</small></span></button>' : '<button class="profile-tile" onclick="openProfileAddresses()">📍 <span><b>My Addresses</b><small>Manage delivery addresses</small></span></button>';
+ document.getElementById('modalContent').innerHTML='<div class="profile-page"><div class="profile-heading"><div class="profile-avatar">'+initial+'</div><div><h2>My Profile</h2><p>'+name+'</p><small>'+email+' · '+escapeHTML(role)+'</small></div></div><div class="profile-section"><h3>Account</h3><div class="profile-info"><span>Full name</span><b>'+name+'</b></div><div class="profile-info"><span>Email</span><b>'+email+'</b></div><div class="profile-info"><span>Account type</span><b>'+escapeHTML(role)+'</b></div><div class="profile-info"><span>Profile photo</span><b>Photo upload setup pending</b></div></div><div class="profile-section"><h3>Saved address</h3><p>'+address+'</p></div><div class="profile-section"><h3>My LUXORA</h3>'+roleTiles+'<button class="profile-tile" onclick="openProfileOrders()">🧾 <span><b>My Orders</b><small>Purchase and rental history</small></span></button><button class="profile-tile" onclick="openProfileWallet()">💳 <span><b>My Wallet</b><small>Balance and transactions</small></span></button><button class="profile-tile" onclick="closeModal();logoutUser()">⚙️ <span><b>Log Out</b><small>Sign out of your account</small></span></button></div></div>';
+ document.getElementById('modalBack').classList.add('show');
+}
+async function openMyProducts(){
+ if(!currentUser||currentProfile?.role!=='Seller')return;
+ document.getElementById('modalContent').innerHTML='<h2>My Products</h2><p>Loading your listings…</p>';
+ try{const result=await tablesDB.listRows({databaseId:APPWRITE_DATABASE_ID,tableId:PRODUCTS_TABLE_ID});const rows=result.rows.filter(row=>row.sellerId===currentUser.$id);document.getElementById('modalContent').innerHTML='<h2>My Products</h2>'+(rows.length?rows.map(row=>'<div class="profile-info"><span>'+escapeHTML(row.title)+'</span><b>'+escapeHTML(row.status||row.listingType||'Listed')+'</b></div>').join(''):'<p>You have not uploaded any products yet.</p>')+'<button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';}
+ catch(error){document.getElementById('modalContent').innerHTML='<h2>My Products</h2><p>Products load nahi ho sake: '+escapeHTML(error.message||'Unknown error')+'</p><button class="outline" onclick="openProfile()">BACK</button>';}
+}
+function openProfileAddresses(){const role=currentProfile?.role||'Buyer';if(role==='Seller'){openSellerAddress();return;}document.getElementById('modalContent').innerHTML='<h2>My Addresses</h2><p>Buyer aur Driver ke address book ka Appwrite setup abhi pending hai.</p><button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';document.getElementById('modalBack').classList.add('show');}
+function openProfileOrders(){document.getElementById('modalContent').innerHTML='<h2>My Orders</h2><p>Order history screen abhi payment aur order records ke saath connect karna baaki hai.</p><button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';document.getElementById('modalBack').classList.add('show');}
+function openProfileWallet(){document.getElementById('modalContent').innerHTML='<h2>My Wallet</h2><p>Wallet balance aur transactions abhi backend se connect nahi hain.</p><button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';document.getElementById('modalBack').classList.add('show');}
 async function logoutUser(){
  try{await account.deleteSession({sessionId:'current'});currentUser=null;currentProfile=null;refreshAuthButtons();}
  catch(error){alert(error.message||'Could not log out.');}
