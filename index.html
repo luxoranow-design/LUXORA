@@ -144,20 +144,29 @@ function openAddProduct(){
    <div class="form-row"><label>Stock / quantity</label><input id="pStock" type="number" min="1" step="1" value="1" required></div>
    <div class="form-row"><label>Weight (kg, if known)</label><input id="pWeight" type="number" min="0" step="0.01" value="0"></div>
    <div class="form-row"><label>Vehicle needed for delivery</label><select id="pVehicle"><option value="">Not specified</option><option>Bike</option><option>Auto</option><option>Car</option><option>Pickup</option><option>Mini Truck</option><option>Truck</option></select></div>
-   <div class="form-row"><label>Pickup address for this product</label><select id="pPickupType" onchange="toggleProductPickupAddress()"><option value="Saved">Use my saved Seller address</option><option value="New">Use a different address for this product</option></select></div>
+   <div class="form-row"><label>Pickup address for this product</label><select id="pPickupType" onchange="toggleProductPickupAddress()"><option value="Saved">Use my saved Seller address</option><option value="New">Enter a pickup address for this product</option></select></div>
    <div class="form-row" id="productPickupAddressRow" style="display:none"><label>New pickup address</label><div id="pPickupFields"></div></div>
    <div class="notice">Saved address: <span id="savedPickupAddressLabel"></span></div>
    <div class="form-row"><label>Product photo</label><input id="pImage" type="file" accept="image/*" required></div>
    <button class="solid" id="productSubmit" style="width:100%;padding:13px">UPLOAD PRODUCT</button>
   </form><div class="notice" id="productMessage" aria-live="polite">Photo and product details will be saved to Appwrite.</div>`;
  document.getElementById('pPickupFields').innerHTML=addressFields('pPickup');
+ const savedAddress=String(currentProfile?.pickupAddress||'').trim();
+ const hasSavedMapPoint=savedAddress&&currentProfile?.pickupLatitude!=null&&currentProfile?.pickupLongitude!=null&&Number.isFinite(Number(currentProfile.pickupLatitude))&&Number.isFinite(Number(currentProfile.pickupLongitude));
+ const pickupSelect=document.getElementById('pPickupType');
+ pickupSelect.value=hasSavedMapPoint?'Saved':'New';
  const savedLabel=document.getElementById('savedPickupAddressLabel');
- if(savedLabel) savedLabel.textContent=currentProfile?.pickupAddress||'No saved address yet — add one using PICKUP ADDRESS.';
+ if(savedLabel) savedLabel.textContent=hasSavedMapPoint?savedAddress:'No saved pickup address with map location. Enter the pickup address below.';
+ toggleProductPickupAddress();
  document.getElementById('modalBack').classList.add('show');
 }
 function toggleProductPickupAddress(){
  const row=document.getElementById('productPickupAddressRow');
- if(row) row.style.display=document.getElementById('pPickupType').value==='New'?'grid':'none';
+ const useNew=document.getElementById('pPickupType')?.value==='New';
+ if(row){
+  row.style.display=useNew?'grid':'none';
+  row.querySelectorAll('input,select,textarea').forEach(field=>{field.disabled=!useNew;});
+ }
 }
 function addressFields(prefix, values={}){
  const fields=[['House / Shop No.','house','e.g. 12, Shop 4'],['Street / Road','street','Street or road name'],['Area / Colony / Village','area','Area or colony'],['Landmark (optional)','landmark','Nearby landmark'],['District','district','District'],['City','city','City / town'],['State','state','State'],['PIN Code','pin','6-digit PIN code']];
