@@ -344,9 +344,39 @@ async function refreshAuthButtons(){
  if(currentUser){
   const role=currentProfile?.role;
   const roleAction=role==='Seller'?'<button class="solid" onclick="openAddProduct()">ADD PRODUCT</button>':role==='Driver'?'<button class="outline" onclick="openDriverDashboard()">DRIVER DASHBOARD</button>':'';
-  actions.innerHTML=`<button class="outline" onclick="openProfile()" aria-label="Open profile" title="Profile" style="width:42px;height:42px;padding:8px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path></svg></button>${roleAction}<span style="font-size:11px;align-self:center">${(currentUser.name||currentUser.email).replace(/[<>]/g,'')}</span><button class="outline" onclick="logoutUser()">LOG OUT</button>`;
+  actions.innerHTML=`<button class="outline" onclick="openProfile()" aria-label="Open profile" title="Profile" style="width:42px;height:42px;padding:3px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;overflow:hidden">'+profilePhotoMarkup(32)+'</button>${roleAction}<span style="font-size:11px;align-self:center">${(currentUser.name||currentUser.email).replace(/[<>]/g,'')}</span><button class="outline" onclick="logoutUser()">LOG OUT</button>`;
  }else{
   actions.innerHTML=`<button class="outline" onclick="openModal('login')">LOG IN</button><button class="solid" onclick="openModal('sell')">START SELLING</button>`;
+ }
+}
+function profilePhotoMarkup(size=58){
+ const id=currentProfile?.photoId;
+ if(id){const url=String(storage.getFileView({bucketId:PRODUCTS_BUCKET_ID,fileId:id}));return '<img src="'+escapeHTML(url)+'" alt="Profile photo" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover">';}
+ const name=currentProfile?.name||currentUser?.name||'L';
+ return '<span style="width:'+size+'px;height:'+size+'px;border-radius:50%;display:grid;place-items:center;background:#eee;font-size:'+Math.round(size*.42)+'px;font-weight:700">'+escapeHTML(name.trim()[0]||'L')+'</span>';
+}
+async function uploadProfilePhoto(event){
+ event.preventDefault();
+ const input=document.getElementById('profilePhotoFile'),button=document.getElementById('profilePhotoSubmit'),msg=document.getElementById('profilePhotoMessage');
+ const file=input?.files?.[0];if(!file){msg.textContent='Pehle photo select karein.';return;}
+ if(!file.type.startsWith('image/')){msg.textContent='Sirf image file upload karein.';return;}
+ if(file.size>5*1024*1024){msg.textContent='Photo 5 MB se chhoti honi chahiye.';return;}
+ button.disabled=true;button.textContent='UPLOADING…';msg.textContent='Photo upload ho rahi hai…';
+ let uploadedId=null;
+ try{
+  const permissions=[Appwrite.Permission.read(Appwrite.Role.any()),Appwrite.Permission.update(Appwrite.Role.user(currentUser.$id)),Appwrite.Permission.delete(Appwrite.Role.user(currentUser.$id))];
+  const uploaded=await storage.createFile({bucketId:PRODUCTS_BUCKET_ID,fileId:Appwrite.ID.unique(),file,permissions});
+  uploadedId=uploaded.$id;
+  const updated=await tablesDB.updateRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:currentUser.$id,data:{photoId:uploadedId}});
+  const previous=currentProfile?.photoId;
+  currentProfile=updated;
+  if(previous&&previous!==uploadedId){try{await storage.deleteFile({bucketId:PRODUCTS_BUCKET_ID,fileId:previous});}catch(e){console.warn('Old profile photo cleanup failed',e);}}
+  msg.textContent='Profile photo successfully save ho gayi.';
+  openProfile();
+ }catch(error){
+  if(uploadedId){try{await storage.deleteFile({bucketId:PRODUCTS_BUCKET_ID,fileId:uploadedId});}catch(e){}}
+  msg.textContent='Photo save nahi hui: '+(error.message||'Unknown error');
+  button.disabled=false;button.textContent='TRY AGAIN';
  }
 }
 function openProfile(){
@@ -356,6 +386,7 @@ function openProfile(){
  const email=escapeHTML(currentProfile?.email||currentUser.email||'');
  const address=escapeHTML(currentProfile?.pickupAddress||'No saved address yet');
  const initial=escapeHTML((name.trim()[0]||'L').toUpperCase());
+ const photo=profilePhotoMarkup(76);
  const roleTiles=role==='Seller' ? '<button class="profile-tile" onclick="openSellerAddress()">📍 <span><b>My Addresses</b><small>Manage saved pickup address</small></span></button><button class="profile-tile" onclick="openAddProduct()">📦 <span><b>Add Product</b><small>List a product for sale or rent</small></span></button><button class="profile-tile" onclick="openMyProducts()">🛍️ <span><b>My Products</b><small>View your uploaded listings</small></span></button>' : role==='Driver' ? '<button class="profile-tile" onclick="openDriverDashboard()">🚚 <span><b>Driver Dashboard</b><small>Vehicle, deliveries and earnings</small></span></button><button class="profile-tile" onclick="openProfileAddresses()">📍 <span><b>My Addresses</b><small>Manage your saved addresses</small></span></button>' : '<button class="profile-tile" onclick="openProfileAddresses()">📍 <span><b>My Addresses</b><small>Manage delivery addresses</small></span></button>';
  document.getElementById('modalContent').innerHTML='<div class="profile-page"><div class="profile-heading"><div class="profile-avatar">'+initial+'</div><div><h2>My Profile</h2><p>'+name+'</p><small>'+email+' · '+escapeHTML(role)+'</small></div></div><div class="profile-section"><h3>Account</h3><div class="profile-info"><span>Full name</span><b>'+name+'</b></div><div class="profile-info"><span>Email</span><b>'+email+'</b></div><div class="profile-info"><span>Account type</span><b>'+escapeHTML(role)+'</b></div><div class="profile-info"><span>Profile photo</span><b>Photo upload setup pending</b></div></div><div class="profile-section"><h3>Saved address</h3><p>'+address+'</p></div><div class="profile-section"><h3>My LUXORA</h3>'+roleTiles+'<button class="profile-tile" onclick="openProfileOrders()">🧾 <span><b>My Orders</b><small>Purchase and rental history</small></span></button><button class="profile-tile" onclick="openProfileWallet()">💳 <span><b>My Wallet</b><small>Balance and transactions</small></span></button><button class="profile-tile" onclick="closeModal();logoutUser()">⚙️ <span><b>Log Out</b><small>Sign out of your account</small></span></button></div></div>';
  document.getElementById('modalBack').classList.add('show');
