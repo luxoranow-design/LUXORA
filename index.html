@@ -398,7 +398,33 @@ async function openMyProducts(){
  catch(error){document.getElementById('modalContent').innerHTML='<h2>My Products</h2><p>Products load nahi ho sake: '+escapeHTML(error.message||'Unknown error')+'</p><button class="outline" onclick="openProfile()">BACK</button>';}
 }
 function openProfileAddresses(){const role=currentProfile?.role||'Buyer';if(role==='Seller'){openSellerAddress();return;}document.getElementById('modalContent').innerHTML='<h2>My Addresses</h2><p>Buyer aur Driver ke address book ka Appwrite setup abhi pending hai.</p><button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';document.getElementById('modalBack').classList.add('show');}
-function openProfileOrders(){document.getElementById('modalContent').innerHTML='<h2>My Orders</h2><p>Order history screen abhi payment aur order records ke saath connect karna baaki hai.</p><button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';document.getElementById('modalBack').classList.add('show');}
+async function openProfileOrders(){
+ if(!currentUser){openModal('login');return;}
+ const role=currentProfile?.role||'Buyer';
+ const heading=role==='Seller'?'Orders for My Products':role==='Driver'?'My Deliveries':'My Orders';
+ document.getElementById('modalContent').innerHTML='<h2>'+heading+'</h2><p>Appwrite se records load ho rahe hain…</p>';
+ document.getElementById('modalBack').classList.add('show');
+ try{
+  const result=await tablesDB.listRows({databaseId:APPWRITE_DATABASE_ID,tableId:'6aee8f9400093f1ae7cc'});
+  const key=role==='Seller'?'sellerId':role==='Driver'?'driverId':'buyerId';
+  const rows=(result.rows||[]).filter(row=>String(row[key]||'')===String(currentUser.$id));
+  const cards=rows.map(row=>{
+   const status=escapeHTML(row.deliveryStatus||row.status||'Pending');
+   const payment=escapeHTML(row.paymentStatus||'Not updated');
+   const kind=escapeHTML(row.orderType||'Order');
+   const title=escapeHTML(row.productTitle||row.title||row.productName||('Product ID: '+(row.productId||'Not available')));
+   const amount=Number(row.totalPrice||0);
+   const date=row.createdAt?new Date(row.createdAt).toLocaleDateString('en-IN'):'Date not available';
+   const address=escapeHTML(role==='Driver'?(row.deliveryAddress||'Delivery address not available'):(role==='Seller'?(row.pickupAddress||'Pickup address not available'):(row.deliveryAddress||'Delivery address not available')));
+   const fee=row.deliveryFee==null?'':('<div class="profile-info"><span>Delivery fee</span><b>'+money(Number(row.deliveryFee))+'</b></div>');
+   return '<div class="driver-panel"><div style="display:flex;justify-content:space-between;gap:10px;align-items:start"><b>'+title+'</b><small>'+escapeHTML(date)+'</small></div><div class="profile-info"><span>Type</span><b>'+kind+'</b></div><div class="profile-info"><span>Order status</span><b>'+status+'</b></div><div class="profile-info"><span>Payment</span><b>'+payment+'</b></div>'+(amount?'<div class="profile-info"><span>Total amount</span><b>'+money(amount)+'</b></div>':'')+fee+'<div class="profile-info"><span>'+ (role==='Seller'?'Pickup address':'Delivery address')+'</span><b>'+address+'</b></div></div>';
+  }).join('');
+  const note=rows.length?'':(role==='Driver'?'Abhi aapke account ko assign hui deliveries nahi mili.':role==='Seller'?'Abhi aapke products ke orders nahi mile.':'Abhi aapke purchase ya rental orders nahi mile.');
+  document.getElementById('modalContent').innerHTML='<h2>'+heading+'</h2><p>'+rows.length+' record(s) mile.</p>'+cards+(note?'<div class="notice">'+note+'</div>':'')+'<button class="outline" onclick="openProfileOrders()" style="margin-top:12px">REFRESH</button> <button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';
+ }catch(error){
+  document.getElementById('modalContent').innerHTML='<h2>'+heading+'</h2><div class="notice">Orders load nahi ho sake. Appwrite Orders table mein is user ke liye row-level READ permission honi chahiye. Table ID aur login session bhi check karein. Details: '+escapeHTML(error.message||'Unknown error')+'</div><button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';
+ }
+}
 function openProfileWallet(){document.getElementById('modalContent').innerHTML='<h2>My Wallet</h2><p>Wallet balance aur transactions abhi backend se connect nahi hain.</p><button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';document.getElementById('modalBack').classList.add('show');}
 async function logoutUser(){
  try{await account.deleteSession({sessionId:'current'});currentUser=null;currentProfile=null;refreshAuthButtons();}
