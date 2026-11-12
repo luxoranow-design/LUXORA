@@ -216,9 +216,10 @@ async function handleAddProduct(event){
   let pickupAddress='',pickupLatitude=null,pickupLongitude=null;
   if(pickupAddressType==='Saved'){
    pickupAddress=String(currentProfile?.pickupAddress||'').trim();
-   pickupLatitude=Number(currentProfile?.pickupLatitude);
-   pickupLongitude=Number(currentProfile?.pickupLongitude);
-   if(!pickupAddress||!Number.isFinite(pickupLatitude)||!Number.isFinite(pickupLongitude)) throw new Error('Pehle PICKUP ADDRESS button se apna saved address save karein.');
+   pickupLatitude=currentProfile?.pickupLatitude;
+   pickupLongitude=currentProfile?.pickupLongitude;
+   if(!pickupAddress||pickupLatitude==null||pickupLongitude==null||!Number.isFinite(Number(pickupLatitude))||!Number.isFinite(Number(pickupLongitude))) throw new Error('Pehle PICKUP ADDRESS button se apna saved address save karein.');
+   pickupLatitude=Number(pickupLatitude);pickupLongitude=Number(pickupLongitude);
   }else{
    pickupAddress=document.getElementById('pPickupAddress').value.trim();
    const point=await geocodePickupAddress(pickupAddress);
