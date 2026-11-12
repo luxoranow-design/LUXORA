@@ -212,7 +212,7 @@ async function saveSellerAddress(event){
   let point=null,mapMessage='Map location abhi nahi mili. Address save hai; delivery route ke liye location baad mein update karni hogi.';
   try{point=await geocodePickupAddress(address,'sellerPickup');}catch(mapError){console.warn('Pickup address geocoding failed:',mapError.message||mapError);}
   const data={pickupAddress:address};
-  if(point){data.pickupLatitude=point.latitude;data.pickupLongitude=point.longitude;}
+  if(point){data.pickupLatitude=point.latitude;data.pickupLongitude=String(point.longitude);}
   const updated=await tablesDB.updateRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:currentUser.$id,data});
   currentProfile=updated;
   message.textContent=point?'Address aur Map location dono successfully save ho gaye.':'Address successfully save ho gaya. '+mapMessage;
