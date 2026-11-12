@@ -551,9 +551,8 @@ async function submitCheckout(event,productId,kind){
   const totalPrice=Math.round(itemTotal+deliveryFee);
   const now=new Date(),end=new Date(now.getTime()+days*86400000);
   msg.textContent='Road distance: '+distanceKm.toFixed(1)+' km · Delivery: '+money(deliveryFee)+' · Total: '+money(totalPrice)+' · Order save ho raha hai…';
-  const permissions=['read("user:'+currentUser.$id+'")','read("user:'+p.sellerId+'")'];
   const data={buyerId:currentUser.$id,sellerId:p.sellerId,productId:p.id,quantity:qty,totalPrice,orderType:kind==='buy'?'Buy':'Rent',deliveryMode:'Delivery',vehicleType:vehicle,pickupAddress:p.pickupAddress,deliveryAddress,rentalStartDate:kind==='rent'?now.toISOString():null,rentalEndDate:kind==='rent'?end.toISOString():null,status:'Awaiting Payment',createdAt:now.toISOString(),deliveryFee,distanceKm,driverEarning:0,paymentMethod:'Not selected',paymentStatus:'pending',amountPaidOnline:0,amountDueOnDelivery:0,deliveryStatus:'pending',pickupLatitude:Number(p.pickupLatitude),pickupLongitude:Number(p.pickupLongitude),deliveryLatitude:destination.latitude,deliveryLongitude:destination.longitude};
-  await tablesDB.createRow({databaseId:APPWRITE_DATABASE_ID,tableId:'6aee8f9400093f1ae7cc',rowId:Appwrite.ID.unique(),data,permissions});
+  await tablesDB.createRow({databaseId:APPWRITE_DATABASE_ID,tableId:'6aee8f9400093f1ae7cc',rowId:Appwrite.ID.unique(),data});
   document.getElementById('modalContent').innerHTML='<h2>Order request saved</h2><div class="notice">Product: '+escapeHTML(p.name)+'<br>Road distance: '+distanceKm.toFixed(1)+' km<br>Delivery charge: '+money(deliveryFee)+'<br>Total: '+money(totalPrice)+'<br>Payment: Pending</div><p>Yeh abhi unpaid order request hai. Online payment aur COD advance collection agle step mein secure backend se connect karna hoga.</p><button class="solid" onclick="openProfileOrders()">VIEW MY ORDERS</button>';
  }catch(error){msg.textContent='Order save nahi hua: '+(error.message||'Unknown error');btn.disabled=false;btn.textContent='CALCULATE & PLACE ORDER REQUEST';}
 }
