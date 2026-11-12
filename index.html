@@ -406,7 +406,29 @@ async function openMyProducts(){
  try{const result=await tablesDB.listRows({databaseId:APPWRITE_DATABASE_ID,tableId:PRODUCTS_TABLE_ID});const rows=result.rows.filter(row=>row.sellerId===currentUser.$id);document.getElementById('modalContent').innerHTML='<h2>My Products</h2>'+(rows.length?rows.map(row=>'<div class="profile-info"><span>'+escapeHTML(row.title)+'</span><b>'+escapeHTML(row.status||row.listingType||'Listed')+'</b></div>').join(''):'<p>You have not uploaded any products yet.</p>')+'<button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';}
  catch(error){document.getElementById('modalContent').innerHTML='<h2>My Products</h2><p>Products load nahi ho sake: '+escapeHTML(error.message||'Unknown error')+'</p><button class="outline" onclick="openProfile()">BACK</button>';}
 }
-function openProfileAddresses(){const role=currentProfile?.role||'Buyer';if(role==='Seller'){openSellerAddress();return;}document.getElementById('modalContent').innerHTML='<h2>My Addresses</h2><p>Buyer aur Driver ke address book ka Appwrite setup abhi pending hai.</p><button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';document.getElementById('modalBack').classList.add('show');}
+function openProfileAddresses(){
+ const role=currentProfile?.role||'Buyer';
+ if(role==='Seller'){openSellerAddress();return;}
+ if(role==='Driver'){document.getElementById('modalContent').innerHTML='<h2>My Addresses</h2><p>Driver address book abhi setup nahi hua hai.</p><button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';document.getElementById('modalBack').classList.add('show');return;}
+ if(!currentUser){openModal('login');return;}
+ const old=String(currentProfile?.buyerAddress||'').split(',').map(x=>x.trim());
+ const values={house:old[0]||'',street:old[1]||'',area:old[2]||'',landmark:old[3]||'',district:old[4]||'',city:old[5]||'',state:old[6]||'',pin:(old[7]||'').replace(/[^0-9]/g,'').slice(0,6)};
+ document.getElementById('modalContent').innerHTML='<h2>My Delivery Address</h2><p>Yeh address aapke Buyer account mein save rahega aur Checkout mein dobara bharna nahi padega.</p><form onsubmit="saveBuyerAddress(event)"><div id="buyerSavedAddressFields"></div><button class="solid" id="buyerAddressSubmit" style="width:100%;padding:13px">SAVE ADDRESS</button></form><div class="notice" id="buyerAddressMessage">Area, City, State aur 6 digit PIN Code zaroor bharein.</div><button class="outline" onclick="openProfile()" style="margin-top:12px">BACK TO PROFILE</button>';
+ document.getElementById('buyerSavedAddressFields').innerHTML=addressFields('buyerSavedAddress',values);
+ document.getElementById('modalBack').classList.add('show');
+}
+async function saveBuyerAddress(event){
+ event.preventDefault();
+ const button=document.getElementById('buyerAddressSubmit'),message=document.getElementById('buyerAddressMessage');
+ let address;try{address=collectAddress('buyerSavedAddress');}catch(error){message.textContent=error.message;return;}
+ button.disabled=true;button.textContent='SAVING…';message.textContent='Buyer address Appwrite mein save ho raha hai…';
+ try{
+  const updated=await tablesDB.updateRow({databaseId:APPWRITE_DATABASE_ID,tableId:PROFILES_TABLE_ID,rowId:currentUser.$id,data:{buyerAddress:address}});
+  currentProfile=updated;
+  message.textContent='Aapka delivery address successfully save ho gaya!';
+  button.textContent='SAVED';
+ }catch(error){message.textContent='Address save nahi hua: '+(error.message||'Unknown error')+'. Profiles Table mein buyerAddress String column check karein.';button.disabled=false;button.textContent='SAVE ADDRESS';}
+}
 async function openProfileOrders(){
  if(!currentUser){openModal('login');return;}
  const role=currentProfile?.role||'Buyer';
@@ -489,7 +511,8 @@ async function openCheckout(productId,kind){
   <div class="notice">Delivery charge road distance ke hisaab se calculate hoga. Payment abhi collect nahi hoga; order payment pending rahega.</div>
   <button class="solid" id="checkoutSubmit" style="width:100%;padding:13px">CALCULATE & PLACE ORDER REQUEST</button>
  </form><div class="notice" id="checkoutMessage" aria-live="polite"></div>`;
- document.getElementById('buyerDeliveryFields').innerHTML=addressFields('buyerDelivery');
+ const saved=String(currentProfile?.buyerAddress||'').split(',').map(x=>x.trim());
+ document.getElementById('buyerDeliveryFields').innerHTML=addressFields('buyerDelivery',{house:saved[0]||'',street:saved[1]||'',area:saved[2]||'',landmark:saved[3]||'',district:saved[4]||'',city:saved[5]||'',state:saved[6]||'',pin:(saved[7]||'').replace(/[^0-9]/g,'').slice(0,6)});
 }
 async function submitCheckout(event,productId,kind){
  event.preventDefault();
