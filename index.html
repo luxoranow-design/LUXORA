@@ -344,7 +344,7 @@ async function refreshAuthButtons(){
  if(currentUser){
   const role=currentProfile?.role;
   const roleAction=role==='Seller'?'<button class="solid" onclick="openAddProduct()">ADD PRODUCT</button>':role==='Driver'?'<button class="outline" onclick="openDriverDashboard()">DRIVER DASHBOARD</button>':'';
-  actions.innerHTML=`<button class="outline" onclick="openProfile()">PROFILE</button>${roleAction}<span style="font-size:11px;align-self:center">${(currentUser.name||currentUser.email).replace(/[<>]/g,'')}</span><button class="outline" onclick="logoutUser()">LOG OUT</button>`;
+  actions.innerHTML=`<button class="outline" onclick="openProfile()" aria-label="Open profile" title="Profile" style="width:42px;height:42px;padding:8px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path></svg></button>${roleAction}<span style="font-size:11px;align-self:center">${(currentUser.name||currentUser.email).replace(/[<>]/g,'')}</span><button class="outline" onclick="logoutUser()">LOG OUT</button>`;
  }else{
   actions.innerHTML=`<button class="outline" onclick="openModal('login')">LOG IN</button><button class="solid" onclick="openModal('sell')">START SELLING</button>`;
  }
