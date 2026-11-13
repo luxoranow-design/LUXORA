@@ -82,10 +82,12 @@ const client = new Appwrite.Client()
 const account = new Appwrite.Account(client);
 const tablesDB = new Appwrite.TablesDB(client);
 const storage = new Appwrite.Storage(client);
+const functions = new Appwrite.Functions(client);
 const APPWRITE_DATABASE_ID = '6aedf1e600285f518090';
 const PROFILES_TABLE_ID = '6aedf248000a3430bed5';
 const PRODUCTS_TABLE_ID = '6aee01e8000b17cee5a3';
 const PRODUCTS_BUCKET_ID = '6aeeaa70002563e59eab';
+const LUXORA_PAYMENTS_FUNCTION_ID = '6aef2197002ea3237114';
 let currentUser = null;
 let currentProfile = null;
 
@@ -449,6 +451,36 @@ async function openProfileOrders(){
  const heading=role==='Seller'?'Orders for My Products':role==='Driver'?'My Deliveries':'My Orders';
  document.getElementById('modalContent').innerHTML='<h2>'+heading+'</h2><p>Appwrite se records load ho rahe hain…</p>';
  document.getElementById('modalBack').classList.add('show');
+ if(role==='Seller'){
+  try{
+   const sessionJwt=await account.createJWT();
+   const execution=await functions.createExecution({
+    functionId:LUXORA_PAYMENTS_FUNCTION_ID,
+    body:JSON.stringify({action:'list-seller-orders',jwt:sessionJwt.jwt}),
+    async:false
+   });
+   let payload={};
+   try{payload=JSON.parse(execution.responseBody||'{}');}catch(_){throw new Error('Orders server ka response samajh nahi aaya.');}
+   if(!payload.success)throw new Error(payload.message||'Seller orders load nahi ho sake.');
+   const rows=Array.isArray(payload.orders)?payload.orders:[];
+   const cards=rows.map(row=>{
+    const status=escapeHTML(row.deliveryStatus||row.status||'Pending');
+    const payment=escapeHTML(row.paymentStatus||'Not updated');
+    const kind=escapeHTML(row.orderType||'Order');
+    const title=escapeHTML(row.productTitle||('Product ID: '+(row.productId||'Not available')));
+    const amount=Number(row.totalPrice||0);
+    const date=row.createdAt?new Date(row.createdAt).toLocaleDateString('en-IN'):'Date not available';
+    const address=escapeHTML(row.deliveryAddress||'Delivery address not available');
+    const fee=row.deliveryFee==null?'':'<div class="profile-info"><span>Delivery fee</span><b>'+money(Number(row.deliveryFee))+'</b></div>';
+    return '<div class="driver-panel"><div style="display:flex;justify-content:space-between;gap:10px;align-items:start"><b>'+title+'</b><small>'+escapeHTML(date)+'</small></div><div class="profile-info"><span>Quantity</span><b>'+escapeHTML(row.quantity||1)+'</b></div><div class="profile-info"><span>Type</span><b>'+kind+'</b></div><div class="profile-info"><span>Order status</span><b>'+status+'</b></div><div class="profile-info"><span>Payment</span><b>'+payment+'</b></div>'+(amount?'<div class="profile-info"><span>Total amount</span><b>'+money(amount)+'</b></div>':'')+fee+'<div class="profile-info"><span>Buyer delivery address</span><b>'+address+'</b></div></div>';
+   }).join('');
+   const note=rows.length?'':'Abhi aapke products ke orders nahi mile.';
+   document.getElementById('modalContent').innerHTML='<h2>'+heading+'</h2><p>'+rows.length+' order(s) mile.</p>'+cards+(note?'<div class="notice">'+note+'</div>':'')+'<button class="outline" onclick="openProfileOrders()" style="margin-top:12px">REFRESH</button> <button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';
+  }catch(error){
+   document.getElementById('modalContent').innerHTML='<h2>'+heading+'</h2><div class="notice">Seller orders load nahi ho sake: '+escapeHTML(error.message||'Unknown error')+'. Appwrite Function deploy aur APPWRITE_API_KEY variable check karein.</div><button class="outline" onclick="openProfile()">BACK TO PROFILE</button>';
+  }
+  return;
+ }
  try{
   const result=await tablesDB.listRows({databaseId:APPWRITE_DATABASE_ID,tableId:'6aee8f9400093f1ae7cc'});
   const key=role==='Seller'?'sellerId':role==='Driver'?'driverId':'buyerId';
